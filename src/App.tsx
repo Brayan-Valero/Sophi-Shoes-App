@@ -10,8 +10,14 @@ import ProductFormPage from './pages/products/ProductFormPage'
 import PurchasesPage from './pages/purchases/PurchasesPage'
 import PurchaseFormPage from './pages/purchases/PurchaseFormPage'
 import SalesPage from './pages/sales/SalesPage'
+import ShippingPage from './pages/sales/ShippingPage'
 import POSPage from './pages/sales/POSPage'
+
 import DailyCashPage from './pages/cash/DailyCashPage'
+import ReportsPage from './pages/reports/ReportsPage'
+import ReceiptPage from './pages/sales/ReceiptPage'
+
+
 import LoadingScreen from './components/ui/LoadingScreen'
 
 // Protected Route component
@@ -75,11 +81,22 @@ function App() {
 
                 {/* Sales - All authenticated users */}
                 <Route path="sales" element={<SalesPage />} />
+                <Route path="shipping" element={<ShippingPage />} />
                 <Route path="sales/new" element={<POSPage />} />
+                <Route path="shipping/new" element={<POSPage />} />
+
+
 
                 {/* Cash Register */}
                 <Route path="cash" element={<DailyCashPage />} />
+
+                {/* Reports - Admin only */}
+                <Route path="reports" element={<ProtectedRoute requireAdmin><ReportsPage /></ProtectedRoute>} />
+
+                {/* Print Receipt - Protected but no layout */}
+                <Route path="print/sale/:id" element={<ProtectedRoute><ReceiptPage /></ProtectedRoute>} />
             </Route>
+
 
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" replace />} />

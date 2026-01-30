@@ -3,12 +3,19 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 import { Sale } from '../../types/database'
-import { Plus, Search, Receipt, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Search, Receipt, ChevronDown, ChevronUp, RotateCcw, Printer, FileDown } from 'lucide-react'
+import { exportToCSV } from '../../utils/exportUtils'
+
+
+import ReturnModal from '../../components/sales/ReturnModal'
+
 
 export default function SalesPage() {
     const [searchTerm, setSearchTerm] = useState('')
     const [expandedSale, setExpandedSale] = useState<string | null>(null)
     const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0])
+    const [saleToReturn, setSaleToReturn] = useState<Sale | null>(null)
+
 
     // Fetch sales with items
     const { data: sales = [], isLoading } = useQuery({
@@ -23,13 +30,16 @@ export default function SalesPage() {
           items:sale_items(
             *,
             product_variant:product_variants(
-              id, size, color, sku,
-              product:products(id, name)
+              product:products(name),
+              size,
+              color
             )
-          )
+          ),
+          customer:customers(full_name, phone)
         `)
                 .gte('sale_date', dateFilter)
                 .lte('sale_date', dateFilter)
+                .eq('shipping_type', 'local')
                 .order('created_at', { ascending: false })
 
             if (error) throw error
@@ -49,7 +59,10 @@ export default function SalesPage() {
         tarjeta: 'Tarjeta',
         transferencia: 'Transferencia',
         mixto: 'Mixto',
+        dropi: 'Dropi',
+        contraentrega: 'Contraentrega',
     }
+
 
     return (
         <div className="space-y-6">
@@ -59,10 +72,31 @@ export default function SalesPage() {
                     <h1 className="text-2xl font-bold text-gray-800">Ventas</h1>
                     <p className="text-gray-500">Historial de ventas realizadas</p>
                 </div>
-                <Link to="/sales/new" className="btn-success flex items-center gap-2 w-fit">
-                    <Plus size={20} />
-                    Nueva Venta
-                </Link>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => {
+                            const exportData = sales.map(s => ({
+                                'Fecha': new Date(s.created_at).toLocaleString(),
+                                'Total': s.total_amount,
+                                'Método': paymentMethodLabels[s.payment_method],
+                                'Descuento': s.discount_amount,
+                                'Cliente': s.customer?.full_name || 'Consumidor Final',
+                                'Items': s.items?.length || 0,
+                                'ID': s.id
+                            }))
+                            exportToCSV(exportData, `ventas_${dateFilter}`)
+                        }}
+                        className="btn-secondary flex items-center gap-2"
+                    >
+                        <FileDown size={20} />
+                        Exportar
+                    </button>
+                    <Link to="/sales/new" className="btn-success flex items-center gap-2 w-fit">
+                        <Plus size={20} />
+                        Nueva Venta
+                    </Link>
+                </div>
+
             </div>
 
             {/* Filters */}
@@ -174,7 +208,28 @@ export default function SalesPage() {
                             {/* Sale items */}
                             {expandedSale === sale.id && sale.items && (
                                 <div className="mt-4 pt-4 border-t">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h4 className="font-semibold text-gray-700">Detalle de Productos</h4>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => window.open(`/print/sale/${sale.id}`, '_blank')}
+                                                className="text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg text-sm font-medium flex items-center gap-2 border border-blue-200 transition-colors"
+                                            >
+                                                <Printer size={16} />
+                                                Imprimir
+                                            </button>
+                                            <button
+                                                onClick={() => setSaleToReturn(sale)}
+                                                className="text-orange-600 hover:bg-orange-50 px-3 py-1 rounded-lg text-sm font-medium flex items-center gap-2 border border-orange-200 transition-colors"
+                                            >
+                                                <RotateCcw size={16} />
+                                                Iniciar Devolución
+                                            </button>
+                                        </div>
+                                    </div>
+
                                     <div className="table-container">
+
                                         <table>
                                             <thead>
                                                 <tr>
@@ -215,6 +270,14 @@ export default function SalesPage() {
                     ))}
                 </div>
             )}
+
+            {saleToReturn && (
+                <ReturnModal
+                    sale={saleToReturn}
+                    onClose={() => setSaleToReturn(null)}
+                />
+            )}
         </div>
+
     )
 }

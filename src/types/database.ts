@@ -3,11 +3,17 @@
 
 export type UserRole = 'admin' | 'vendedor'
 
-export type PaymentMethod = 'efectivo' | 'tarjeta' | 'transferencia' | 'mixto'
+export type PaymentMethod = 'efectivo' | 'tarjeta' | 'transferencia' | 'mixto' | 'dropi' | 'contraentrega'
+
 
 export type PurchaseStatus = 'pendiente' | 'pagada'
 
 export type MovementType = 'compra' | 'venta' | 'ajuste' | 'devolucion'
+
+export type ShippingType = 'local' | 'dropi' | 'contraentrega'
+export type ShippingStatus = 'pendiente' | 'enviado' | 'entregado' | 'devuelto'
+export type ReturnStatus = 'pendiente' | 'completado' | 'rechazado'
+
 
 // Profile (extension of auth.users)
 export interface Profile {
@@ -109,7 +115,7 @@ export interface PurchaseItem {
 
 export interface PurchaseItemInsert extends Omit<PurchaseItem, 'id' | 'created_at' | 'product_variant'> { }
 
-// Sale (Venta local)
+// Sale (Venta local / Envíos)
 export interface Sale {
     id: string
     sale_date: string
@@ -118,11 +124,19 @@ export interface Sale {
     payment_method: PaymentMethod
     notes: string | null
     created_by: string | null
+    customer_id: string | null
+    // Shipping fields
+    shipping_type: ShippingType
+    shipping_status: ShippingStatus
+    tracking_number: string | null
+    shipping_cost: number
     created_at: string
     updated_at: string
     // Joined data
     items?: SaleItem[]
+    customer?: any // using any to avoid circular dep or just simplify for now
 }
+
 
 export interface SaleInsert extends Omit<Sale, 'id' | 'created_at' | 'updated_at' | 'items'> { }
 export interface SaleUpdate extends Partial<SaleInsert> { }
@@ -171,3 +185,23 @@ export interface DailyCashSummary {
         mixto: number
     }
 }
+
+// Returns (Devoluciones)
+export interface Return {
+    id: string
+    sale_id: string
+    reason: string
+    refund_amount: number
+    status: ReturnStatus
+    created_at: string
+    items?: ReturnItem[]
+}
+
+export interface ReturnItem {
+    id: string
+    return_id: string
+    product_variant_id: string
+    quantity: number
+    created_at: string
+}
+

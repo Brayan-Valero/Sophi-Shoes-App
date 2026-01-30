@@ -4,7 +4,10 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 import { Product } from '../../types/database'
 import { useAuth } from '../../contexts/AuthContext'
-import { Plus, Search, Package, Edit, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Search, Package, Edit, ChevronDown, ChevronUp, AlertTriangle, FileDown } from 'lucide-react'
+import { exportToCSV } from '../../utils/exportUtils'
+
+
 
 export default function ProductsPage() {
     const { isAdmin } = useAuth()
@@ -43,6 +46,11 @@ export default function ProductsPage() {
         return product.variants?.reduce((sum, v) => sum + v.stock, 0) || 0
     }
 
+    const hasLowStock = (product: Product) => {
+        return product.variants?.some(v => v.stock <= (v.min_stock || 5))
+    }
+
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -51,12 +59,41 @@ export default function ProductsPage() {
                     <h1 className="text-2xl font-bold text-gray-800">Productos</h1>
                     <p className="text-gray-500">Gestiona el catálogo de calzado e inventario</p>
                 </div>
-                {isAdmin && (
-                    <Link to="/products/new" className="btn-primary flex items-center gap-2 w-fit">
-                        <Plus size={20} />
-                        Nuevo Producto
-                    </Link>
-                )}
+                <div className="flex items-center gap-2 w-fit">
+                    {isAdmin && (
+                        <button
+                            onClick={() => {
+                                const exportData = products.flatMap(p =>
+                                    (p.variants || []).map(v => ({
+                                        'Producto': p.name,
+                                        'Categoría': p.category || '',
+                                        'Talla': v.size,
+                                        'Color': v.color,
+                                        'SKU': v.sku || '',
+                                        'Costo': v.cost,
+                                        'Precio': v.price,
+                                        'Stock': v.stock,
+                                        'Stock Mín': v.min_stock || 0,
+                                        'Proveedor': p.supplier?.name || '',
+                                        'Estado': p.is_active ? 'Activo' : 'Inactivo'
+                                    }))
+                                )
+                                exportToCSV(exportData, 'inventario_sophi_shoes')
+                            }}
+                            className="btn-secondary flex items-center gap-2"
+                        >
+                            <FileDown size={20} />
+                            Exportar
+                        </button>
+                    )}
+                    {isAdmin && (
+                        <Link to="/products/new" className="btn-primary flex items-center gap-2">
+                            <Plus size={20} />
+                            Nuevo Producto
+                        </Link>
+                    )}
+                </div>
+
             </div>
 
             {/* Search */}
@@ -115,6 +152,13 @@ export default function ProductsPage() {
                                             {!product.is_active && (
                                                 <span className="badge-warning">Inactivo</span>
                                             )}
+                                            {hasLowStock(product) && (
+                                                <span className="badge-error flex items-center gap-1">
+                                                    <AlertTriangle size={12} />
+                                                    Stock Bajo
+                                                </span>
+                                            )}
+
                                         </div>
                                         <div className="flex flex-wrap gap-2 mt-1">
                                             {product.category && (
@@ -180,8 +224,9 @@ export default function ProductsPage() {
                                                     <th>Talla</th>
                                                     <th>Color</th>
                                                     <th>SKU</th>
-                                                    <th className="text-right">Costo</th>
+                                                    {isAdmin && <th className="text-right">Costo</th>}
                                                     <th className="text-right">Precio</th>
+
                                                     <th className="text-right">Stock</th>
                                                 </tr>
                                             </thead>
@@ -191,13 +236,14 @@ export default function ProductsPage() {
                                                         <td className="font-medium">{variant.size}</td>
                                                         <td>{variant.color}</td>
                                                         <td className="text-gray-500">{variant.sku || '-'}</td>
-                                                        <td className="text-right">${variant.cost.toLocaleString()}</td>
+                                                        {isAdmin && <td className="text-right">${variant.cost.toLocaleString()}</td>}
                                                         <td className="text-right">${variant.price.toLocaleString()}</td>
+
                                                         <td className="text-right">
                                                             <span
                                                                 className={`font-medium ${variant.stock <= variant.min_stock
-                                                                        ? 'text-red-600'
-                                                                        : 'text-green-600'
+                                                                    ? 'text-red-600'
+                                                                    : 'text-green-600'
                                                                     }`}
                                                             >
                                                                 {variant.stock}

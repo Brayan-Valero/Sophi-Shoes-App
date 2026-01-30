@@ -289,6 +289,122 @@ CREATE POLICY "Vendedor can read inventory_movements" ON public.inventory_moveme
   FOR SELECT USING (public.get_user_role() = 'vendedor');
 
 -- =============================================
+-- 10. CASH REGISTERS TABLE (Control de Caja)
+-- =============================================
+CREATE TABLE IF NOT EXISTS public.cash_registers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  opening_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  closing_amount DECIMAL(12,2),
+  expected_amount DECIMAL(12,2),
+  notes TEXT,
+  status TEXT CHECK (status IN ('open', 'closed')) DEFAULT 'open',
+  opened_at TIMESTAMPTZ DEFAULT NOW(),
+  closed_at TIMESTAMPTZ,
+  opened_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS
+ALTER TABLE public.cash_registers ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin full access to cash_registers" ON public.cash_registers;
+CREATE POLICY "Admin full access to cash_registers" ON public.cash_registers
+  FOR ALL USING (public.get_user_role() = 'admin');
+
+DROP POLICY IF EXISTS "Vendedor can view own cash_registers" ON public.cash_registers;
+CREATE POLICY "Vendedor can view own cash_registers" ON public.cash_registers
+  FOR ALL USING (public.get_user_role() = 'vendedor');
+
+-- =============================================
+-- 11. EXPENSES TABLE (Gastos/Retiros)
+-- =============================================
+CREATE TABLE IF NOT EXISTS public.expenses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  description TEXT NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  category TEXT CHECK (category IN ('proveedor', 'servicios', 'personal', 'otros')) DEFAULT 'otros',
+  expense_date TIMESTAMPTZ DEFAULT NOW(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  cash_register_id UUID REFERENCES public.cash_registers(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS
+ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin full access to expenses" ON public.expenses FOR ALL USING (public.get_user_role() = 'admin');
+CREATE POLICY "Vendedor can insert expenses" ON public.expenses FOR INSERT WITH CHECK (public.get_user_role() = 'vendedor');
+CREATE POLICY "Vendedor can view expenses" ON public.expenses FOR SELECT USING (public.get_user_role() = 'vendedor');
+
+
+-- =============================================
+-- 12. CUSTOMERS TABLE (Clientes)
+-- =============================================
+CREATE TABLE IF NOT EXISTS public.customers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  full_name TEXT NOT NULL,
+  phone TEXT,
+  email TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS
+ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Everyone can read customers" ON public.customers FOR SELECT USING (true);
+CREATE POLICY "Everyone can insert customers" ON public.customers FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admin full access to customers" ON public.customers FOR ALL USING (public.get_user_role() = 'admin');
+
+-- Add customer_id to sales
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL;
+
+
+-- Add Customer and Shipping columns to Sales (if not exists)
+-- customer_id was added in previous step, ensuring it's there.
+-- Now adding shipping fields:
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS shipping_type TEXT CHECK (shipping_type IN ('local', 'dropi', 'contraentrega')) DEFAULT 'local';
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS shipping_status TEXT CHECK (shipping_status IN ('pendiente', 'enviado', 'entregado', 'devuelto')) DEFAULT 'pendiente';
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS tracking_number TEXT;
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS shipping_cost DECIMAL(12,2) DEFAULT 0;
+
+-- Update Product Variants
+ALTER TABLE public.product_variants ADD COLUMN IF NOT EXISTS min_stock INTEGER DEFAULT 5;
+
+
+-- =============================================
+-- 13. RETURNS TABLE (Devoluciones)
+-- =============================================
+CREATE TABLE IF NOT EXISTS public.returns (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sale_id UUID REFERENCES public.sales(id),
+  reason TEXT,
+  refund_amount DECIMAL(12,2) DEFAULT 0,
+  status TEXT CHECK (status IN ('pendiente', 'completado', 'rechazado')) DEFAULT 'pendiente',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.return_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  return_id UUID REFERENCES public.returns(id) ON DELETE CASCADE,
+  product_variant_id UUID REFERENCES public.product_variants(id),
+  quantity INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS
+ALTER TABLE public.returns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.return_items ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admin full access to returns" ON public.returns FOR ALL USING (public.get_user_role() = 'admin');
+CREATE POLICY "Vendedor can view/create returns" ON public.returns FOR ALL USING (public.get_user_role() = 'vendedor');
+
+CREATE POLICY "Admin full access to return_items" ON public.return_items FOR ALL USING (public.get_user_role() = 'admin');
+CREATE POLICY "Vendedor can view/create return_items" ON public.return_items FOR ALL USING (public.get_user_role() = 'vendedor');
+
+
+-- =============================================
 -- CREATE INITIAL ADMIN USER
 -- =============================================
 -- Run this AFTER creating a user in Supabase Auth:

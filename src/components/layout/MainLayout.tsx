@@ -1,150 +1,161 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import {
     LayoutDashboard,
-    Package,
     Users,
+    Package,
     ShoppingCart,
     Receipt,
-    DollarSign,
     LogOut,
     Menu,
-    X,
+    DollarSign,
+    UserCircle,
+    ChevronRight,
+    BarChart,
+    Truck
 } from 'lucide-react'
-import { useState } from 'react'
 
-interface NavItem {
-    to: string
-    icon: React.ReactNode
-    label: string
-    adminOnly?: boolean
-}
 
-const navItems: NavItem[] = [
-    { to: '/', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
-    { to: '/suppliers', icon: <Users size={20} />, label: 'Proveedores', adminOnly: true },
-    { to: '/products', icon: <Package size={20} />, label: 'Productos' },
-    { to: '/purchases', icon: <ShoppingCart size={20} />, label: 'Compras', adminOnly: true },
-    { to: '/sales', icon: <Receipt size={20} />, label: 'Ventas' },
-    { to: '/cash', icon: <DollarSign size={20} />, label: 'Caja Diaria' },
-]
 
 export default function MainLayout() {
-    const { profile, signOut, isAdmin } = useAuth()
+    const { signOut, profile, isAdmin } = useAuth()
     const navigate = useNavigate()
-    const [sidebarOpen, setSidebarOpen] = useState(false)
+    const location = useLocation()
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false) // Mobile state
+    const [isCollapsed, setIsCollapsed] = useState(false) // Desktop state
+
 
     const handleSignOut = async () => {
         await signOut()
         navigate('/login')
     }
 
-    const filteredNavItems = navItems.filter(
-        (item) => !item.adminOnly || isAdmin
-    )
+    const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
+
+    const navItems = [
+        { to: '/', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
+        { to: '/sales', icon: <Receipt size={20} />, label: 'Ventas' },
+        { to: '/shipping', icon: <Truck size={20} />, label: 'Envíos' },
+        { to: '/products', icon: <Package size={20} />, label: 'Inventario' },
+
+        { to: '/suppliers', icon: <Users size={20} />, label: 'Proveedores', adminOnly: true },
+        { to: '/purchases', icon: <ShoppingCart size={20} />, label: 'Compras', adminOnly: true },
+        { to: '/cash', icon: <DollarSign size={20} />, label: 'Caja Diaria' },
+
+        { to: '/reports', icon: <BarChart size={20} />, label: 'Reportes', adminOnly: true },
+    ]
+
+
+    const filteredNavItems = navItems.filter((item) => !item.adminOnly || isAdmin)
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
-            {/* Mobile sidebar backdrop */}
-            {sidebarOpen && (
+        <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
+            {/* Mobile Sidebar Overlay */}
+            {isSidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-                    onClick={() => setSidebarOpen(false)}
+                    className="fixed inset-0 bg-black/50 z-20 lg:hidden backdrop-blur-sm"
+                    onClick={() => setIsSidebarOpen(false)}
                 />
             )}
 
             {/* Sidebar */}
             <aside
                 className={`
-          fixed lg:static inset-y-0 left-0 z-50
-          w-64 bg-gradient-to-b from-primary-900 via-primary-800 to-primary-900
-          transform transition-transform duration-200 ease-in-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          fixed lg:static inset-y-0 left-0 z-30
+          bg-white border-r border-gray-200 shadow-xl lg:shadow-none
+          transition-all duration-300 ease-in-out flex flex-col
+          ${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'}
+          ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}
         `}
             >
-                <div className="flex flex-col h-full">
-                    {/* Logo */}
-                    <div className="p-6 border-b border-primary-700/50">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                                <span className="text-2xl">👟</span>
-                            </div>
-                            <div>
-                                <h1 className="text-lg font-bold text-white">Sophi Shoes</h1>
-                                <p className="text-xs text-primary-200">Sistema de Inventario</p>
-                            </div>
-                        </div>
+                {/* Brand */}
+                <div className={`h-20 flex items-center ${isCollapsed ? 'justify-center' : 'px-6 gap-3'} border-b border-gray-100 bg-brand-bg/10`}>
+                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm flex-shrink-0 p-1">
+                        <img src="/logo.jpg" alt="Logo" className="w-full h-full object-contain rounded-full" />
                     </div>
-
-                    {/* Navigation */}
-                    <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                        {filteredNavItems.map((item) => (
-                            <NavLink
-                                key={item.to}
-                                to={item.to}
-                                end={item.to === '/'}
-                                onClick={() => setSidebarOpen(false)}
-                                className={({ isActive }) =>
-                                    `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
-                                        ? 'bg-white/20 text-white shadow-lg'
-                                        : 'text-primary-100 hover:bg-white/10 hover:text-white'
-                                    }`
-                                }
-                            >
-                                {item.icon}
-                                {item.label}
-                            </NavLink>
-                        ))}
-                    </nav>
-
-                    {/* User info & logout */}
-                    <div className="p-4 border-t border-primary-700/50">
-                        <div className="flex items-center gap-3 px-4 py-3 mb-2">
-                            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                                <span className="text-white font-semibold">
-                                    {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
-                                </span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white truncate">
-                                    {profile?.full_name || profile?.email}
-                                </p>
-                                <p className="text-xs text-primary-200 capitalize">
-                                    {profile?.role || 'Usuario'}
-                                </p>
-                            </div>
+                    {!isCollapsed && (
+                        <div>
+                            <h1 className="font-serif font-bold text-lg text-primary-700 leading-tight">Sophi Shoes</h1>
+                            <p className="text-xs text-secondary-600 font-medium tracking-wide">POS System</p>
                         </div>
+                    )}
+                </div>
+
+                {/* Navigation */}
+                <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+                    {filteredNavItems.map((item) => (
+                        <NavLink
+                            key={item.to}
+                            to={item.to}
+                            onClick={() => setIsSidebarOpen(false)}
+                            className={({ isActive }) => `
+                flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group
+                ${isActive
+                                    ? 'bg-primary-50 text-primary-700 shadow-sm'
+                                    : 'text-gray-600 hover:bg-gray-50 hover:text-primary-600'
+                                }
+                ${isCollapsed ? 'justify-center' : ''}
+              `}
+                            title={isCollapsed ? item.label : ''}
+                        >
+                            <span className={`transition-transform duration-200 ${isCollapsed ? '' : 'group-hover:scale-110'}`}>
+                                {item.icon}
+                            </span>
+                            {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                            {!isCollapsed && location.pathname === item.to && (
+                                <ChevronRight size={16} className="ml-auto opacity-50" />
+                            )}
+                        </NavLink>
+                    ))}
+                </nav>
+
+                {/* User Profile */}
+                <div className="p-4 border-t border-gray-100 bg-gray-50/50">
+                    <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center flex-col' : ''}`}>
+                        <div className="w-10 h-10 rounded-full bg-secondary-100 text-secondary-600 flex items-center justify-center flex-shrink-0">
+                            <UserCircle size={24} />
+                        </div>
+                        {!isCollapsed && (
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-800 truncate">
+                                    {profile?.full_name || 'Usuario'}
+                                </p>
+                                <p className="text-xs text-gray-500 capitalize truncate">
+                                    {profile?.role || 'Vendedor'}
+                                </p>
+                            </div>
+                        )}
+
                         <button
                             onClick={handleSignOut}
-                            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-primary-100 hover:bg-white/10 hover:text-white rounded-xl transition-all duration-200"
+                            className={`p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors ${isCollapsed ? 'mt-2' : ''}`}
+                            title="Cerrar Sesión"
                         >
                             <LogOut size={20} />
-                            Cerrar Sesión
                         </button>
                     </div>
                 </div>
             </aside>
 
-            {/* Main content */}
-            <div className="flex-1 flex flex-col min-h-screen">
-                {/* Top bar */}
-                <header className="bg-white border-b border-gray-200 px-4 py-3 lg:px-6">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => setSidebarOpen(true)}
-                            className="lg:hidden p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
-                        >
-                            {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col min-w-0 bg-brand-bg/5">
+                {/* Top Header (Mobile Only) */}
+                <header className="lg:hidden h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sticky top-0 z-10 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <button onClick={toggleSidebar} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                            <Menu size={24} />
                         </button>
-                        <div className="flex-1">
-                            {/* Breadcrumb or page title can go here */}
-                        </div>
+                        <h1 className="font-serif font-bold text-lg text-primary-700">Sophi Shoes</h1>
                     </div>
                 </header>
 
-                {/* Page content */}
-                <main className="flex-1 p-4 lg:p-6 overflow-auto">
-                    <div className="animate-fade-in">
+                {/* Desktop Header / Breadcrumbs (Optional, keep clean for now) */}
+                <div className="h-4 lg:block hidden"></div>
+
+                {/* Content Scrollable */}
+                <main className="flex-1 overflow-auto p-4 lg:p-8">
+                    <div className="max-w-7xl mx-auto animate-fade-in">
                         <Outlet />
                     </div>
                 </main>

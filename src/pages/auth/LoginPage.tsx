@@ -1,153 +1,138 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { isSupabaseConfigured } from '../../lib/supabase'
-import { Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { AlertCircle, LogIn, Database } from 'lucide-react'
+import { isMockMode } from '../../lib/supabase'
 
 export default function LoginPage() {
-    const { signIn } = useAuth()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
-    const [showPassword, setShowPassword] = useState(false)
-    const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [loading, setLoading] = useState(false)
+    const { signIn } = useAuth()
+    const navigate = useNavigate()
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
+        setLoading(true)
         setError(null)
 
-        if (!isSupabaseConfigured()) {
-            setError('Supabase no está configurado. Por favor, configura las variables de entorno.')
-            return
+        try {
+            await signIn(email, password)
+            navigate('/')
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Error al iniciar sesión')
+        } finally {
+            setLoading(false)
         }
+    }
 
-        if (!email || !password) {
-            setError('Por favor, ingresa tu email y contraseña.')
-            return
-        }
+    const isDemo = isMockMode()
 
-        setLoading(true)
-
-        const { error } = await signIn(email, password)
-
-        if (error) {
-            setError('Credenciales incorrectas. Por favor, intenta de nuevo.')
-        }
-
-        setLoading(false)
+    const handleDemoLogin = (role: 'admin' | 'vendedor') => {
+        setEmail(role === 'admin' ? 'admin@sophi.com' : 'vendedor@sophi.com')
+        setPassword('demo123')
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
-                {/* Logo */}
-                <div className="text-center mb-8">
-                    <div className="w-20 h-20 mx-auto bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 shadow-xl">
-                        <span className="text-4xl">👟</span>
+        <div className="min-h-screen bg-brand-light flex items-center justify-center p-4">
+            <div className="max-w-md w-full bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-white/50">
+                <div className="bg-gradient-to-br from-brand-bg to-brand-light p-8 text-center relative overflow-hidden">
+                    {/* Decorative circles */}
+                    <div className="absolute top-0 left-0 w-32 h-32 bg-secondary-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+
+                    <div className="relative z-10">
+                        <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg p-2">
+                            <img src="/logo.jpg" alt="Sophi Shoes" className="w-full h-full object-contain rounded-full" />
+                        </div>
+                        <h1 className="text-3xl font-serif font-bold text-primary-600">Sophi Shoes</h1>
+                        <p className="text-primary-800 mt-2 font-medium">Sistema de Gestión</p>
                     </div>
-                    <h1 className="text-3xl font-bold text-white">Sophi Shoes</h1>
-                    <p className="text-primary-200 mt-2">Sistema de Inventario</p>
                 </div>
 
-                {/* Login form */}
-                <div className="bg-white rounded-2xl shadow-2xl p-8">
-                    <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">
-                        Iniciar Sesión
-                    </h2>
+                <div className="p-8">
+                    {isDemo && (
+                        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg flex gap-3 text-sm text-orange-800">
+                            <Database className="flex-shrink-0 text-orange-600" size={20} />
+                            <div>
+                                <p className="font-bold">Modo Demo Local</p>
+                                <div className="mt-2 flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDemoLogin('admin')}
+                                        className="text-xs bg-orange-200 hover:bg-orange-300 px-3 py-1.5 rounded-full transition-colors font-medium text-orange-900"
+                                    >
+                                        Xiomara (Admin)
+                                    </button>
 
-                    {/* Supabase warning */}
-                    {!isSupabaseConfigured() && (
-                        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                            <div className="flex items-start gap-3">
-                                <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
-                                <div>
-                                    <p className="text-sm font-medium text-yellow-800">
-                                        Supabase no configurado
-                                    </p>
-                                    <p className="text-sm text-yellow-700 mt-1">
-                                        Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en el archivo .env
-                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDemoLogin('vendedor')}
+                                        className="text-xs bg-orange-200 hover:bg-orange-300 px-3 py-1.5 rounded-full transition-colors font-medium text-orange-900"
+                                    >
+                                        Nicolle (Vendedor)
+                                    </button>
+
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Error message */}
-                    {error && (
-                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-                            <div className="flex items-center gap-3">
-                                <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
-                                <p className="text-sm text-red-700">{error}</p>
-                            </div>
-                        </div>
-                    )}
+                    <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">Bienvenido de nuevo</h2>
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
-                        {/* Email field */}
-                        <div className="form-group">
-                            <label htmlFor="email" className="form-label">
-                                Correo electrónico
-                            </label>
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        {error && (
+                            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600 text-sm animate-pulse">
+                                <AlertCircle size={18} />
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="space-y-1">
+                            <label className="text-sm font-medium text-gray-700">Correo Electrónico</label>
                             <input
-                                id="email"
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="form-input"
-                                placeholder="tu@email.com"
-                                autoComplete="email"
-                                disabled={loading}
+                                className="form-input bg-gray-50 focus:bg-white"
+                                placeholder="usuario@ejemplo.com"
+                                required
                             />
                         </div>
 
-                        {/* Password field */}
-                        <div className="form-group">
-                            <label htmlFor="password" className="form-label">
-                                Contraseña
-                            </label>
-                            <div className="relative">
-                                <input
-                                    id="password"
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="form-input pr-10"
-                                    placeholder="••••••••"
-                                    autoComplete="current-password"
-                                    disabled={loading}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                    tabIndex={-1}
-                                >
-                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                </button>
-                            </div>
+                        <div className="space-y-1">
+                            <label className="text-sm font-medium text-gray-700">Contraseña</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="form-input bg-gray-50 focus:bg-white"
+                                placeholder="••••••••"
+                                required
+                            />
                         </div>
 
-                        {/* Submit button */}
                         <button
                             type="submit"
-                            disabled={loading || !isSupabaseConfigured()}
-                            className="w-full btn-primary py-3 text-base"
+                            disabled={loading}
+                            className="w-full btn-primary py-3 flex items-center justify-center gap-2 shadow-lg shadow-primary-500/30 hover:shadow-primary-600/40"
                         >
                             {loading ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <div className="spinner w-5 h-5 border-white/30 border-t-white"></div>
-                                    Ingresando...
-                                </span>
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                             ) : (
-                                'Ingresar'
+                                <>
+                                    <LogIn size={20} />
+                                    Ingresar
+                                </>
                             )}
                         </button>
                     </form>
-                </div>
 
-                {/* Footer */}
-                <p className="text-center text-primary-200 text-sm mt-6">
-                    © 2024 Sophi Shoes. Todos los derechos reservados.
-                </p>
+                    <div className="mt-8 text-center text-xs text-gray-400">
+                        &copy; {new Date().getFullYear()} Sophi Shoes
+                    </div>
+                </div>
             </div>
         </div>
     )

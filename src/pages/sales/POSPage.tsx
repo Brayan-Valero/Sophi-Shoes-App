@@ -1,11 +1,14 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
-import { ProductVariant, PaymentMethod } from '../../types/database'
+import { ProductVariant, PaymentMethod, ShippingType } from '../../types/database'
+
 import { useAuth } from '../../contexts/AuthContext'
 import {
     ArrowLeft,
+
     ShoppingBag,
     Search,
     Plus,
@@ -15,25 +18,55 @@ import {
     Banknote,
     Smartphone,
     CheckCircle,
+    Truck,
+    Package,
+    Printer
 } from 'lucide-react'
+
+
+
+import CustomerSelect from '../../components/sales/CustomerSelect'
 
 interface CartItem {
     variant: ProductVariant & { product?: { name: string } }
     quantity: number
 }
 
+interface Customer {
+    id: string
+    full_name: string
+    phone: string | null
+    email: string | null
+    notes: string | null
+}
+
 export default function POSPage() {
+
     const navigate = useNavigate()
+    const location = useLocation()
     const queryClient = useQueryClient()
     const { user } = useAuth()
 
+    const isShippingMode = location.pathname.includes('/shipping/new')
+
     const [cart, setCart] = useState<CartItem[]>([])
     const [searchTerm, setSearchTerm] = useState('')
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('efectivo')
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(isShippingMode ? 'dropi' : 'efectivo')
     const [discount, setDiscount] = useState(0)
     const [notes, setNotes] = useState('')
+
+    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+
+    // Shipping State
+    const [shippingType, setShippingType] = useState<ShippingType>(isShippingMode ? 'dropi' : 'local')
+    const [trackingNumber, setTrackingNumber] = useState('')
+    const [shippingCost, setShippingCost] = useState(0)
+
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
+
+
+
 
     // Fetch product variants with stock > 0
     const { data: variants = [] } = useQuery({
@@ -114,8 +147,16 @@ export default function POSPage() {
         setCart([])
         setDiscount(0)
         setNotes('')
+        setSelectedCustomer(null)
+        setShippingType(isShippingMode ? 'dropi' : 'local')
+        setTrackingNumber('')
+        setShippingCost(0)
+        setPaymentMethod(isShippingMode ? 'dropi' : 'efectivo')
         setSuccess(false)
     }
+
+
+
 
     // Save sale mutation
     const saleMutation = useMutation({
@@ -133,8 +174,16 @@ export default function POSPage() {
                     payment_method: paymentMethod,
                     notes: notes || null,
                     created_by: user?.id,
+                    customer_id: selectedCustomer?.id,
+                    // Shipping fields
+                    shipping_type: shippingType,
+                    shipping_status: shippingType === 'local' ? 'entregado' : 'pendiente',
+                    tracking_number: trackingNumber || null,
+                    shipping_cost: shippingCost
                 })
                 .select('id')
+
+
                 .single()
 
             if (saleError) throw saleError
@@ -200,6 +249,38 @@ export default function POSPage() {
         saleMutation.mutate()
     }
 
+    // Handle Enter key for barcode scanner
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' && searchTerm) {
+            // 1. Try exact SKU match
+            const exactMatch = variants.find(v => v.sku?.toLowerCase() === searchTerm.toLowerCase())
+
+            if (exactMatch) {
+                if (exactMatch.stock > 0) {
+                    addToCart(exactMatch)
+                    setSearchTerm('')
+                    setError(null)
+                } else {
+                    setError(`El producto "${exactMatch.product?.name}" no tiene stock`)
+                }
+                return
+            }
+
+            // 2. If only one result in filtered list, add it
+            if (filteredVariants.length === 1) {
+                const variant = filteredVariants[0]
+                if (variant.stock > 0) {
+                    addToCart(variant)
+                    setSearchTerm('')
+                    setError(null)
+                } else {
+                    setError(`El producto "${variant.product?.name}" no tiene stock`)
+                }
+            }
+        }
+    }
+
+
     // Success screen
     if (success) {
         return (
@@ -217,14 +298,23 @@ export default function POSPage() {
                     </p>
                     <div className="flex gap-3">
                         <button onClick={clearCart} className="btn-primary flex-1">
-                            Nueva Venta
+                            {isShippingMode ? 'Nuevo Envío' : 'Nueva Venta'}
                         </button>
-                        <button onClick={() => navigate('/sales')} className="btn-secondary flex-1">
-                            Ver Ventas
+                        <button onClick={() => navigate(isShippingMode ? '/shipping' : '/sales')} className="btn-secondary flex-1">
+                            {isShippingMode ? 'Ver Envíos' : 'Ver Ventas'}
                         </button>
                     </div>
+
+                    <button
+                        onClick={() => window.open(`/print/sale/${saleMutation.data}`, '_blank')}
+                        className="btn-secondary w-full mt-3 flex items-center justify-center gap-2"
+                    >
+                        <Printer size={20} />
+                        Imprimir Recibo
+                    </button>
                 </div>
             </div>
+
         )
     }
 
@@ -234,13 +324,16 @@ export default function POSPage() {
             <div className="flex-1 flex flex-col min-h-0">
                 <div className="flex items-center gap-4 mb-4">
                     <button
-                        onClick={() => navigate('/sales')}
+                        onClick={() => navigate(isShippingMode ? '/shipping' : '/sales')}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
                         <ArrowLeft size={24} />
                     </button>
-                    <h1 className="text-xl font-bold text-gray-800">Punto de Venta</h1>
+                    <h1 className="text-xl font-bold text-gray-800">
+                        {isShippingMode ? 'Nuevo Envío' : 'Nueva Venta (Local)'}
+                    </h1>
                 </div>
+
 
                 {/* Search */}
                 <div className="relative mb-4">
@@ -250,8 +343,10 @@ export default function POSPage() {
                         placeholder="Buscar producto..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyDown={handleKeyDown}
                         className="form-input pl-10"
                         autoFocus
+
                     />
                 </div>
 
@@ -313,7 +408,81 @@ export default function POSPage() {
                     </div>
                 )}
 
+                {/* Customer Select */}
+                <div className="mb-4">
+                    <CustomerSelect
+                        selectedCustomer={selectedCustomer}
+                        onSelect={setSelectedCustomer}
+                    />
+                </div>
+
+
+                {/* Shipping Options */}
+                <div className="mb-4">
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Tipo de Entrega</label>
+                    <div className="grid grid-cols-3 gap-2 mb-2">
+                        {isShippingMode ? (
+                            <>
+                                {[
+                                    { value: 'dropi', label: 'Dropi', icon: <Package size={18} /> },
+                                    { value: 'contraentrega', label: 'Contraentrega', icon: <Truck size={18} /> },
+                                ].map(opt => (
+                                    <button
+                                        key={opt.value}
+                                        onClick={() => setShippingType(opt.value as ShippingType)}
+                                        className={`p-2 rounded-lg border text-sm flex flex-col items-center gap-1 transition-all ${shippingType === opt.value
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                            : 'border-gray-200 hover:border-gray-300'
+                                            }`}
+                                    >
+                                        {opt.icon}
+                                        <span className="text-xs">{opt.label}</span>
+                                    </button>
+                                ))}
+                            </>
+                        ) : (
+                            <button
+                                onClick={() => setShippingType('local')}
+                                className="p-2 rounded-lg border border-blue-500 bg-blue-50 text-blue-700 text-sm flex flex-col items-center gap-1 col-span-3"
+                            >
+                                <ShoppingBag size={18} />
+                                <span className="text-xs">Local</span>
+                            </button>
+                        )}
+                    </div>
+
+
+                    {shippingType !== 'local' && (
+                        <div className="space-y-2 animate-fade-in bg-blue-50 p-3 rounded-lg border border-blue-100">
+                            <div>
+                                <label className="text-xs font-medium text-blue-800">No. Guía / Tracking</label>
+                                <input
+                                    value={trackingNumber}
+                                    onChange={e => setTrackingNumber(e.target.value)}
+                                    className="form-input text-sm h-8"
+                                    placeholder="Ej: GUIA-12345"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-blue-800">Costo Envío</label>
+                                <div className="relative">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
+                                    <input
+                                        type="number"
+                                        value={shippingCost}
+                                        onChange={e => setShippingCost(Number(e.target.value))}
+                                        className="form-input text-sm h-8 pl-6"
+                                        placeholder="0"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 {/* Cart items */}
+
+
                 <div className="flex-1 overflow-y-auto min-h-0 space-y-2 mb-4">
                     {cart.length === 0 ? (
                         <div className="text-center py-8 text-gray-400">
@@ -364,17 +533,20 @@ export default function POSPage() {
                     <label className="text-sm font-medium text-gray-700 mb-2 block">Forma de Pago</label>
                     <div className="grid grid-cols-3 gap-2">
                         {[
-                            { value: 'efectivo', label: 'Efectivo', icon: <Banknote size={18} /> },
-                            { value: 'tarjeta', label: 'Tarjeta', icon: <CreditCard size={18} /> },
-                            { value: 'transferencia', label: 'Transfer.', icon: <Smartphone size={18} /> },
-                        ].map((method) => (
+                            { value: 'efectivo', label: 'Efectivo', icon: <Banknote size={18} />, hidden: isShippingMode },
+                            { value: 'tarjeta', label: 'Tarjeta', icon: <CreditCard size={18} />, hidden: isShippingMode },
+                            { value: 'transferencia', label: 'Transf.', icon: <Smartphone size={18} />, hidden: isShippingMode },
+                            { value: 'mixto', label: 'Mixto', icon: <Banknote size={18} />, hidden: isShippingMode },
+                            { value: 'dropi', label: 'Dropi', icon: <Package size={18} />, hidden: !isShippingMode },
+                            { value: 'contraentrega', label: 'Contraentr.', icon: <Truck size={18} />, hidden: !isShippingMode },
+                        ].filter(m => !m.hidden).map((method) => (
                             <button
                                 key={method.value}
                                 type="button"
                                 onClick={() => setPaymentMethod(method.value as PaymentMethod)}
                                 className={`p-2 rounded-lg border text-sm flex flex-col items-center gap-1 transition-all ${paymentMethod === method.value
-                                        ? 'border-primary-500 bg-primary-50 text-primary-700'
-                                        : 'border-gray-200 hover:border-gray-300'
+                                    ? 'border-primary-500 bg-primary-50 text-primary-700'
+                                    : 'border-gray-200 hover:border-gray-300'
                                     }`}
                             >
                                 {method.icon}
@@ -382,6 +554,7 @@ export default function POSPage() {
                             </button>
                         ))}
                     </div>
+
                 </div>
 
                 {/* Discount */}
