@@ -70,9 +70,9 @@ export default function MainLayout() {
         `}
             >
                 {/* Brand */}
-                <div className={`h-20 flex items-center ${isCollapsed ? 'justify-center' : 'px-6 gap-3'} border-b border-gray-100 bg-brand-bg/10`}>
+                <div className={`h-20 flex items-center ${isCollapsed ? 'justify-center' : 'px-6 gap-3'} border-b border-gray-100 bg-brand-peach/20`}>
                     <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm flex-shrink-0 p-1">
-                        <img src="/logo.jpg" alt="Logo" className="w-full h-full object-contain rounded-full" />
+                        <img src="/logos/logo-bw.jpg" alt="Logo" className="w-full h-full object-contain rounded-full" />
                     </div>
                     {!isCollapsed && (
                         <div>
@@ -139,7 +139,7 @@ export default function MainLayout() {
             </aside>
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col min-w-0 bg-brand-bg/5">
+            <div className="flex-1 flex flex-col min-w-0 bg-brand-peach/5">
                 {/* Top Header (Mobile Only) */}
                 <header className="lg:hidden h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sticky top-0 z-10 shadow-sm">
                     <div className="flex items-center gap-3">

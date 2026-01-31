@@ -68,7 +68,7 @@ export default function DashboardPage() {
     return (
         <div className="space-y-6">
             {/* Welcome header */}
-            <div className="card bg-gradient-to-r from-primary-600 to-primary-700 text-white">
+            <div className="card bg-gradient-to-r from-primary-600 to-primary-800 text-white border-none shadow-lg shadow-primary-900/20">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold">

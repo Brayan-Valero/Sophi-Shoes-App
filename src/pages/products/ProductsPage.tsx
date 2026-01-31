@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 import { Product } from '../../types/database'
 import { useAuth } from '../../contexts/AuthContext'
-import { Plus, Search, Package, Edit, ChevronDown, ChevronUp, AlertTriangle, FileDown } from 'lucide-react'
+import { Plus, Search, Package, Edit, ChevronDown, ChevronUp, AlertTriangle, FileDown, Camera } from 'lucide-react'
 import { exportToCSV } from '../../utils/exportUtils'
 
 
@@ -145,9 +145,15 @@ export default function ProductsPage() {
                             {/* Product header */}
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="flex items-start gap-4">
-                                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                                        <Package className="text-blue-600" size={24} />
-                                    </div>
+                                    {product.image_url ? (
+                                        <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-gray-100 shadow-sm">
+                                            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                                        </div>
+                                    ) : (
+                                        <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                                            <Package className="text-blue-600" size={28} />
+                                        </div>
+                                    )}
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <h3 className="font-semibold text-gray-800">{product.name}</h3>
@@ -223,18 +229,27 @@ export default function ProductsPage() {
                                         <table>
                                             <thead>
                                                 <tr>
+                                                    <th className="w-12">Foto</th>
                                                     <th>Talla</th>
                                                     <th>Color</th>
                                                     <th>SKU</th>
                                                     {isAdmin && <th className="text-right">Costo</th>}
                                                     <th className="text-right">Precio</th>
-
                                                     <th className="text-right">Stock</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {product.variants.map((variant) => (
                                                     <tr key={variant.id}>
+                                                        <td>
+                                                            {variant.image_url ? (
+                                                                <img src={variant.image_url} alt="" className="w-8 h-8 rounded object-cover border" />
+                                                            ) : (
+                                                                <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
+                                                                    <Camera size={12} className="text-gray-400" />
+                                                                </div>
+                                                            )}
+                                                        </td>
                                                         <td className="font-medium">{variant.size}</td>
                                                         <td>{variant.color}</td>
                                                         <td className="text-gray-500">{variant.sku || '-'}</td>

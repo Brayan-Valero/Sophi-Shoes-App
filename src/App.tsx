@@ -41,6 +41,7 @@ function ProtectedRoute({ children, requireAdmin = false }: { children: React.Re
 
 function App() {
     const { user, loading } = useAuth()
+    console.log('App State:', { loading, user: user?.email })
 
     if (loading) {
         return <LoadingScreen />

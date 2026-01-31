@@ -16,31 +16,32 @@ export default {
                     300: '#c4b5fd',
                     400: '#a78bfa',
                     500: '#8b5cf6',
-                    600: '#5D3A75', // Brand Primary (Deep Purple) - Adjusted manually
+                    600: '#5D3A76', // Brand Primary (Deep Purple) - Extracted from Logo
                     700: '#4C2A65', // Darker variant
                     800: '#3D2152',
                     900: '#2E183E',
                     950: '#1F102A',
                 },
-                // Secondary: Hot Pink/Magenta from "S"
+                // Secondary: Warm Pink/Rose to complement the palette
                 secondary: {
-                    50: '#fdf2f8',
-                    100: '#fce7f3',
-                    200: '#fbcfe8',
-                    300: '#f9a8d4',
-                    400: '#f472b6',
-                    500: '#ec4899',
-                    600: '#E04F80', // Brand Secondary (Hot Pink) - Adjusted manually
-                    700: '#be185d',
-                    800: '#9d174d',
-                    900: '#831843',
-                    950: '#500724',
+                    50: '#fff1f2',
+                    100: '#ffe4e6',
+                    200: '#fecdd3',
+                    300: '#fda4af',
+                    400: '#fb7185',
+                    500: '#f43f5e',
+                    600: '#e11d48',
+                    700: '#be123c',
+                    800: '#9f1239',
+                    900: '#881337',
+                    950: '#4c0519',
                 },
-                // Brand Background (Soft Salmon/Pink)
+                // Brand Backgrounds from Logos
                 brand: {
-                    bg: '#F8BBD0', // Soft pink background
-                    light: '#FFCDD2', // Lighter variant
-                    dark: '#F06292', // Darker variant
+                    peach: '#FDF0ED', // From logo 2
+                    lavender: '#F2F0FF', // From logo 3
+                    light: '#FFCDD2',
+                    dark: '#F06292',
                 },
                 // Status colors
                 success: '#10b981',

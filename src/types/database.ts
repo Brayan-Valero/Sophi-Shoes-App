@@ -50,6 +50,7 @@ export interface Product {
     category: string | null
     supplier_id: string | null
     is_active: boolean
+    image_url: string | null
     created_at: string
     updated_at: string
     // Joined data
@@ -71,6 +72,7 @@ export interface ProductVariant {
     price: number
     stock: number
     min_stock: number
+    image_url: string | null
     created_at: string
     updated_at: string
     // Joined data

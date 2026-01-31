@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 import { Product, ProductInsert, ProductVariantInsert, Supplier } from '../../types/database'
 import { ArrowLeft, Save, Package, Plus, Trash2 } from 'lucide-react'
+import ImageUpload from '../../components/ui/ImageUpload'
 
 interface VariantForm {
     id?: string
@@ -14,6 +15,7 @@ interface VariantForm {
     price: number
     stock: number
     min_stock: number
+    image_url: string | null
 }
 
 export default function ProductFormPage() {
@@ -28,6 +30,7 @@ export default function ProductFormPage() {
         category: '',
         supplier_id: null,
         is_active: true,
+        image_url: null,
     })
     const [variants, setVariants] = useState<VariantForm[]>([])
     const [error, setError] = useState<string | null>(null)
@@ -71,6 +74,7 @@ export default function ProductFormPage() {
                 category: product.category || '',
                 supplier_id: product.supplier_id,
                 is_active: product.is_active,
+                image_url: product.image_url || null,
             })
             if (product.variants) {
                 setVariants(
@@ -83,6 +87,7 @@ export default function ProductFormPage() {
                         price: v.price,
                         stock: v.stock,
                         min_stock: v.min_stock,
+                        image_url: v.image_url || null,
                     }))
                 )
             }
@@ -136,6 +141,7 @@ export default function ProductFormPage() {
                         price: variant.price,
                         stock: variant.stock,
                         min_stock: variant.min_stock,
+                        image_url: variant.image_url || null,
                     }
 
                     if (variant.id) {
@@ -183,11 +189,11 @@ export default function ProductFormPage() {
     const addVariant = () => {
         setVariants((prev) => [
             ...prev,
-            { size: '', color: '', sku: '', cost: 0, price: 0, stock: 0, min_stock: 0 },
+            { size: '', color: '', sku: '', cost: 0, price: 0, stock: 0, min_stock: 0, image_url: null },
         ])
     }
 
-    const updateVariant = (index: number, field: keyof VariantForm, value: string | number) => {
+    const updateVariant = (index: number, field: keyof VariantForm, value: string | number | null) => {
         setVariants((prev) =>
             prev.map((v, i) => (i === index ? { ...v, [field]: value } : v))
         )
@@ -229,9 +235,20 @@ export default function ProductFormPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Product info card */}
                 <div className="card space-y-6">
-                    <div className="flex justify-center">
-                        <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center">
-                            <Package className="text-blue-600" size={32} />
+                    <div className="flex justify-center gap-8">
+                        <div className="flex-1 max-w-[200px]">
+                            <ImageUpload
+                                value={formData.image_url}
+                                onChange={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
+                                path="products"
+                                label="Foto del Producto"
+                            />
+                        </div>
+                        <div className="flex flex-col justify-center">
+                            <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-2">
+                                <Package className="text-blue-600" size={32} />
+                            </div>
+                            <p className="text-xs text-gray-400 max-w-[150px]">Esta será la foto principal del catálogo.</p>
                         </div>
                     </div>
 
@@ -347,87 +364,97 @@ export default function ProductFormPage() {
                                             <Trash2 size={18} />
                                         </button>
                                     </div>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                        <div>
-                                            <label className="text-xs text-gray-500">Talla *</label>
-                                            <input
-                                                type="text"
-                                                value={variant.size}
-                                                onChange={(e) => updateVariant(index, 'size', e.target.value)}
-                                                className="form-input text-sm"
-                                                placeholder="37"
-                                                required
+                                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+                                        <div className="sm:col-span-1">
+                                            <ImageUpload
+                                                value={variant.image_url}
+                                                onChange={(url) => updateVariant(index, 'image_url', url)}
+                                                path="variants"
+                                                label="Foto"
                                             />
                                         </div>
-                                        <div>
-                                            <label className="text-xs text-gray-500">Color *</label>
-                                            <input
-                                                type="text"
-                                                value={variant.color}
-                                                onChange={(e) => updateVariant(index, 'color', e.target.value)}
-                                                className="form-input text-sm"
-                                                placeholder="Negro"
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs text-gray-500">SKU</label>
-                                            <input
-                                                type="text"
-                                                value={variant.sku}
-                                                onChange={(e) => updateVariant(index, 'sku', e.target.value)}
-                                                className="form-input text-sm"
-                                                placeholder="ABC-001"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs text-gray-500">Stock Mín.</label>
-                                            <input
-                                                type="number"
-                                                value={variant.min_stock}
-                                                onChange={(e) => updateVariant(index, 'min_stock', Number(e.target.value))}
-                                                className="form-input text-sm"
-                                                min="0"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs text-gray-500">Costo</label>
-                                            <input
-                                                type="number"
-                                                value={variant.cost}
-                                                onChange={(e) => updateVariant(index, 'cost', Number(e.target.value))}
-                                                className="form-input text-sm"
-                                                min="0"
-                                                step="0.01"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs text-gray-500">Precio</label>
-                                            <input
-                                                type="number"
-                                                value={variant.price}
-                                                onChange={(e) => updateVariant(index, 'price', Number(e.target.value))}
-                                                className="form-input text-sm"
-                                                min="0"
-                                                step="0.01"
-                                            />
-                                        </div>
-                                        <div className="col-span-2 sm:col-span-2">
-                                            <label className="text-xs text-gray-500">Stock Actual</label>
-                                            <input
-                                                type="number"
-                                                value={variant.stock}
-                                                onChange={(e) => updateVariant(index, 'stock', Number(e.target.value))}
-                                                className="form-input text-sm"
-                                                min="0"
-                                                disabled={isEditing}
-                                                title={isEditing ? 'El stock se modifica mediante compras y ventas' : ''}
-                                            />
-                                            {isEditing && (
-                                                <p className="text-xs text-gray-400 mt-1">
-                                                    Stock se modifica con compras/ventas
-                                                </p>
-                                            )}
+                                        <div className="sm:col-span-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                            <div>
+                                                <label className="text-xs text-gray-500">Talla *</label>
+                                                <input
+                                                    type="text"
+                                                    value={variant.size}
+                                                    onChange={(e) => updateVariant(index, 'size', e.target.value)}
+                                                    className="form-input text-sm"
+                                                    placeholder="37"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-gray-500">Color *</label>
+                                                <input
+                                                    type="text"
+                                                    value={variant.color}
+                                                    onChange={(e) => updateVariant(index, 'color', e.target.value)}
+                                                    className="form-input text-sm"
+                                                    placeholder="Negro"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-gray-500">SKU</label>
+                                                <input
+                                                    type="text"
+                                                    value={variant.sku}
+                                                    onChange={(e) => updateVariant(index, 'sku', e.target.value)}
+                                                    className="form-input text-sm"
+                                                    placeholder="ABC-001"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-gray-500">Stock Mín.</label>
+                                                <input
+                                                    type="number"
+                                                    value={variant.min_stock}
+                                                    onChange={(e) => updateVariant(index, 'min_stock', Number(e.target.value))}
+                                                    className="form-input text-sm"
+                                                    min="0"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-gray-500">Costo</label>
+                                                <input
+                                                    type="number"
+                                                    value={variant.cost}
+                                                    onChange={(e) => updateVariant(index, 'cost', Number(e.target.value))}
+                                                    className="form-input text-sm"
+                                                    min="0"
+                                                    step="0.01"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-gray-500">Precio</label>
+                                                <input
+                                                    type="number"
+                                                    value={variant.price}
+                                                    onChange={(e) => updateVariant(index, 'price', Number(e.target.value))}
+                                                    className="form-input text-sm"
+                                                    min="0"
+                                                    step="0.01"
+                                                />
+                                            </div>
+                                            <div className="col-span-2 sm:col-span-2">
+                                                <label className="text-xs text-gray-500">Stock Actual</label>
+                                                <input
+                                                    type="number"
+                                                    value={variant.stock}
+                                                    onChange={(e) => updateVariant(index, 'stock', Number(e.target.value))}
+                                                    className="form-input text-sm"
+                                                    min="0"
+                                                    disabled={isEditing}
+                                                    title={isEditing ? 'El stock se modifica mediante compras y ventas' : ''}
+                                                />
+                                                {isEditing && (
+                                                    <p className="text-xs text-gray-400 mt-1">
+                                                        Stock se modifica con compras/ventas
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

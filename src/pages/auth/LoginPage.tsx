@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { AlertCircle, LogIn, Database } from 'lucide-react'
-import { isMockMode } from '../../lib/supabase'
+import { AlertCircle, LogIn } from 'lucide-react'
 
 export default function LoginPage() {
     const [email, setEmail] = useState('')
@@ -27,24 +26,18 @@ export default function LoginPage() {
         }
     }
 
-    const isDemo = isMockMode()
-
-    const handleDemoLogin = (role: 'admin' | 'vendedor') => {
-        setEmail(role === 'admin' ? 'admin@sophi.com' : 'vendedor@sophi.com')
-        setPassword('demo123')
-    }
 
     return (
-        <div className="min-h-screen bg-brand-light flex items-center justify-center p-4">
+        <div className="min-h-screen bg-brand-peach flex items-center justify-center p-4">
             <div className="max-w-md w-full bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-white/50">
-                <div className="bg-gradient-to-br from-brand-bg to-brand-light p-8 text-center relative overflow-hidden">
+                <div className="bg-brand-peach/50 p-8 text-center relative overflow-hidden ring-1 ring-primary-100">
                     {/* Decorative circles */}
                     <div className="absolute top-0 left-0 w-32 h-32 bg-secondary-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
 
                     <div className="relative z-10">
                         <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg p-2">
-                            <img src="/logo.jpg" alt="Sophi Shoes" className="w-full h-full object-contain rounded-full" />
+                            <img src="/logos/logo-peach.jpg" alt="Sophi Shoes" className="w-full h-full object-contain rounded-full" />
                         </div>
                         <h1 className="text-3xl font-serif font-bold text-primary-600">Sophi Shoes</h1>
                         <p className="text-primary-800 mt-2 font-medium">Sistema de Gestión</p>
@@ -52,32 +45,6 @@ export default function LoginPage() {
                 </div>
 
                 <div className="p-8">
-                    {isDemo && (
-                        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg flex gap-3 text-sm text-orange-800">
-                            <Database className="flex-shrink-0 text-orange-600" size={20} />
-                            <div>
-                                <p className="font-bold">Modo Demo Local</p>
-                                <div className="mt-2 flex gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => handleDemoLogin('admin')}
-                                        className="text-xs bg-orange-200 hover:bg-orange-300 px-3 py-1.5 rounded-full transition-colors font-medium text-orange-900"
-                                    >
-                                        Xiomara (Admin)
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => handleDemoLogin('vendedor')}
-                                        className="text-xs bg-orange-200 hover:bg-orange-300 px-3 py-1.5 rounded-full transition-colors font-medium text-orange-900"
-                                    >
-                                        Nicolle (Vendedor)
-                                    </button>
-
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">Bienvenido de nuevo</h2>
 

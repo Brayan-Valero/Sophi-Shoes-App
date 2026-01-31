@@ -76,8 +76,8 @@ export default function POSPage() {
             const { data } = await supabase
                 .from('product_variants')
                 .select(`
-          id, size, color, sku, price, stock,
-          product:products(id, name, is_active)
+          id, size, color, sku, price, stock, image_url,
+          product:products(id, name, is_active, image_url)
         `)
                 .gt('stock', 0)
                 .order('product_id')
@@ -360,28 +360,43 @@ export default function POSPage() {
                                     key={variant.id}
                                     onClick={() => addToCart(variant)}
                                     disabled={inCart && inCart.quantity >= variant.stock}
-                                    className={`card p-3 text-left hover:shadow-md transition-all ${inCart ? 'ring-2 ring-primary-500' : ''
+                                    className={`card p-0 overflow-hidden text-left hover:shadow-md transition-all ${inCart ? 'ring-2 ring-primary-500' : ''
                                         } ${inCart && inCart.quantity >= variant.stock ? 'opacity-50' : ''}`}
                                 >
-                                    <p className="font-medium text-gray-800 text-sm truncate">
-                                        {variant.product?.name}
-                                    </p>
-                                    <p className="text-xs text-gray-500">
-                                        {variant.size} - {variant.color}
-                                    </p>
-                                    <div className="flex justify-between items-center mt-2">
-                                        <span className="font-bold text-primary-600">
-                                            ${variant.price.toLocaleString()}
-                                        </span>
-                                        <span className="text-xs text-gray-400">
-                                            Stock: {variant.stock}
-                                        </span>
+                                    <div className="aspect-[4/3] bg-gray-100 relative">
+                                        {(variant.image_url || variant.product?.image_url) ? (
+                                            <img
+                                                src={variant.image_url || variant.product?.image_url || undefined}
+                                                alt={variant.product?.name}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <Package className="text-gray-300" size={32} />
+                                            </div>
+                                        )}
+                                        {inCart && (
+                                            <div className="absolute top-2 right-2 bg-primary-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
+                                                {inCart.quantity}
+                                            </div>
+                                        )}
                                     </div>
-                                    {inCart && (
-                                        <div className="mt-2 text-xs bg-primary-100 text-primary-700 rounded-full px-2 py-1 text-center">
-                                            {inCart.quantity} en carrito
+                                    <div className="p-3">
+                                        <p className="font-medium text-gray-800 text-xs truncate">
+                                            {variant.product?.name}
+                                        </p>
+                                        <p className="text-[10px] text-gray-500">
+                                            {variant.size} - {variant.color}
+                                        </p>
+                                        <div className="flex justify-between items-center mt-1">
+                                            <span className="font-bold text-primary-600 text-sm">
+                                                ${variant.price.toLocaleString()}
+                                            </span>
+                                            <span className="text-[10px] text-gray-400">
+                                                Stk: {variant.stock}
+                                            </span>
                                         </div>
-                                    )}
+                                    </div>
                                 </button>
                             )
                         })}
@@ -491,7 +506,20 @@ export default function POSPage() {
                         </div>
                     ) : (
                         cart.map((item) => (
-                            <div key={item.variant.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                            <div key={item.variant.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                                <div className="w-10 h-10 rounded border border-gray-200 overflow-hidden flex-shrink-0 bg-white">
+                                    {(item.variant.image_url || item.variant.product?.image_url) ? (
+                                        <img
+                                            src={item.variant.image_url || item.variant.product?.image_url || undefined}
+                                            alt=""
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                            <Package size={16} className="text-gray-300" />
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="font-medium text-sm truncate">{item.variant.product?.name}</p>
                                     <p className="text-xs text-gray-500">
