@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+// Loading screen
 
 export default function LoadingScreen() {
     return (

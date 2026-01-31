@@ -35,11 +35,13 @@ export default function ProductsPage() {
     })
 
     // Filter products
+    // Filter products
     const filteredProducts = products.filter(
         (product) =>
             product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             product.category?.toLowerCase().includes(searchTerm.toLowerCase())
     )
+
 
     // Calculate total stock for a product
     const getTotalStock = (product: Product) => {
@@ -47,7 +49,7 @@ export default function ProductsPage() {
     }
 
     const hasLowStock = (product: Product) => {
-        return product.variants?.some(v => v.stock <= (v.min_stock || 5))
+        return (product.variants || []).some(v => v.stock <= (v.min_stock || 5))
     }
 
 

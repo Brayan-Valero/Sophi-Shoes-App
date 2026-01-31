@@ -1,0 +1,6 @@
+src/components/layout/MainLayout.tsx(26,25): error TS6133: 'setIsCollapsed' is declared but its value is never read.
+src/components/ui/LoadingScreen.tsx(1,1): error TS6133: 'useNavigate' is declared but its value is never read.
+src/contexts/AuthContext.tsx(49,52): error TS7031: Binding element 'session' implicitly has an 'any' type.
+src/contexts/AuthContext.tsx(62,20): error TS7006: Parameter '_event' implicitly has an 'any' type.
+src/contexts/AuthContext.tsx(62,28): error TS7006: Parameter 'session' implicitly has an 'any' type.
+src/pages/products/ProductFormPage.tsx(5,34): error TS6133: 'ProductVariant' is declared but its value is never read.

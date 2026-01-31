@@ -162,21 +162,24 @@ export default function DailyCashPage() {
     const totalDiscount = sales.reduce((sum, sale) => sum + (sale.discount_amount || 0), 0)
 
     // Detailed payment methods
-    const byPaymentMethod = {
+    const byPaymentMethod: Record<string, number> = {
         efectivo: sales.filter((s) => s.payment_method === 'efectivo').reduce((sum, s) => sum + s.total_amount, 0),
         tarjeta: sales.filter((s) => s.payment_method === 'tarjeta').reduce((sum, s) => sum + s.total_amount, 0),
         transferencia: sales.filter((s) => s.payment_method === 'transferencia').reduce((sum, s) => sum + s.total_amount, 0),
         mixto: sales.filter((s) => s.payment_method === 'mixto').reduce((sum, s) => sum + s.total_amount, 0),
+        dropi: sales.filter((s) => s.payment_method === 'dropi').reduce((sum, s) => sum + s.total_amount, 0),
+        contraentrega: sales.filter((s) => s.payment_method === 'contraentrega').reduce((sum, s) => sum + s.total_amount, 0),
     }
 
-    const totalCashInDrawer = (currentRegister?.opening_amount || 0) + byPaymentMethod.efectivo - totalExpenses
+    const totalCashInDrawer = (currentRegister?.opening_amount || 0) + (byPaymentMethod.efectivo || 0) - totalExpenses
 
-    const paymentMethodInfo: Record<PaymentMethod, { label: string; icon: React.ReactNode; color: string }> = {
-
+    const paymentMethodInfo: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
         efectivo: { label: 'Efectivo', icon: <Banknote size={24} />, color: 'bg-green-100 text-green-600' },
         tarjeta: { label: 'Tarjeta', icon: <CreditCard size={24} />, color: 'bg-blue-100 text-blue-600' },
         transferencia: { label: 'Transferencia', icon: <Smartphone size={24} />, color: 'bg-purple-100 text-purple-600' },
         mixto: { label: 'Mixto', icon: <DollarSign size={24} />, color: 'bg-orange-100 text-orange-600' },
+        dropi: { label: 'Dropi', icon: <Smartphone size={24} />, color: 'bg-indigo-100 text-indigo-600' },
+        contraentrega: { label: 'Contraentrega', icon: <Smartphone size={24} />, color: 'bg-indigo-100 text-indigo-600' },
     }
 
     const formatDate = (date: string) => {
@@ -398,8 +401,14 @@ export default function DailyCashPage() {
                                             </span>
                                         </td>
                                         <td className="text-right text-gray-500">
-                                            {sale.discount_amount > 0 ? `-$${sale.discount_amount.toLocaleString()}` : '-'}
+                                            {(sale.discount_amount || 0) > 0 && (
+                                                <div className="flex justify-between">
+                                                    <span>Descuento:</span>
+                                                    <span>-${(sale.discount_amount || 0).toLocaleString()}</span>
+                                                </div>
+                                            )}
                                         </td>
+
                                         <td className="text-right font-semibold">
                                             ${sale.total_amount.toLocaleString()}
                                         </td>

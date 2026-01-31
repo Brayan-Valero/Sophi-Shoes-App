@@ -163,8 +163,8 @@ class MockQueryBuilder {
 
         if (query?.includes('variants:product_variants')) {
             const variants = getStorage('product_variants')
-            const products = getStorage('products') // Nested deep
             this.data = this.data.map(item => {
+
                 // If getting products, attach variants
                 if (this.table === 'products') {
                     return {
@@ -336,7 +336,8 @@ class MockQueryBuilder {
     }
 
     // Execute
-    then(resolve: (res: { data: any; error: any }) => void, reject?: (err: any) => void) {
+    then(resolve: (res: { data: any; error: any }) => void) {
+
         // 1. Apply filters
         let result = this.data.filter(item => {
             for (const filter of this._filters) {
@@ -389,7 +390,8 @@ export const createMockClient = () => {
                 return { data: { session: session ? JSON.parse(session) : null }, error: null }
             },
             signInWithPassword: async ({ email }: { email: string }) => {
-                return new Promise((resolve, _reject) => {
+                return new Promise((resolve) => {
+
                     setTimeout(() => {
                         const isAdmin = email.includes('admin')
                         const user = {

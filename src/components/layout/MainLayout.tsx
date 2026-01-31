@@ -23,7 +23,7 @@ export default function MainLayout() {
     const navigate = useNavigate()
     const location = useLocation()
     const [isSidebarOpen, setIsSidebarOpen] = useState(false) // Mobile state
-    const [isCollapsed, setIsCollapsed] = useState(false) // Desktop state
+    const [isCollapsed] = useState(false) // Desktop state
 
 
     const handleSignOut = async () => {
@@ -89,7 +89,7 @@ export default function MainLayout() {
                             key={item.to}
                             to={item.to}
                             onClick={() => setIsSidebarOpen(false)}
-                            className={({ isActive }) => `
+                            className={({ isActive }: { isActive: boolean }) => `
                 flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group
                 ${isActive
                                     ? 'bg-primary-50 text-primary-700 shadow-sm'

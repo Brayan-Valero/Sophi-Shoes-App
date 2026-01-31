@@ -96,10 +96,10 @@ export default function ReceiptPage() {
                     <span>Subtotal:</span>
                     <span>${(sale.total_amount + (sale.discount_amount || 0)).toLocaleString()}</span>
                 </div>
-                {sale.discount_amount > 0 && (
+                {(sale.discount_amount || 0) > 0 && (
                     <div className="flex justify-between">
                         <span>Descuento:</span>
-                        <span>-${sale.discount_amount.toLocaleString()}</span>
+                        <span>-${(sale.discount_amount || 0).toLocaleString()}</span>
                     </div>
                 )}
                 <div className="flex justify-between font-bold text-lg border-t border-black pt-1 mt-1">

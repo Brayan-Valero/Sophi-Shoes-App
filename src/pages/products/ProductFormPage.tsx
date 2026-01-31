@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
-import { Product, ProductInsert, ProductVariant, ProductVariantInsert, Supplier } from '../../types/database'
+import { Product, ProductInsert, ProductVariantInsert, Supplier } from '../../types/database'
 import { ArrowLeft, Save, Package, Plus, Trash2 } from 'lucide-react'
 
 interface VariantForm {
