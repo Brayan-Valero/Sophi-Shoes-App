@@ -121,19 +121,7 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Info card for non-configured Supabase */}
-            <div className="card border-l-4 border-l-yellow-500">
-                <div className="flex items-start gap-4">
-                    <AlertTriangle className="text-yellow-500 flex-shrink-0" size={24} />
-                    <div>
-                        <h3 className="font-semibold text-gray-800">Configuración Pendiente</h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                            Recuerda configurar Supabase con tu URL y API Key en el archivo .env para
-                            habilitar todas las funciones del sistema.
-                        </p>
-                    </div>
-                </div>
-            </div>
+
 
             {/* Stats placeholder - will be populated with real data later */}
             <div>
