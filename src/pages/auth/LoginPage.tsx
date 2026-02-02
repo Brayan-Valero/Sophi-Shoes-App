@@ -17,7 +17,8 @@ export default function LoginPage() {
         setError(null)
 
         try {
-            await signIn(email, password)
+            const { error: signInError } = await signIn(email, password)
+            if (signInError) throw signInError
             navigate('/')
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Error al iniciar sesión')
