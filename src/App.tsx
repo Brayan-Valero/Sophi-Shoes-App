@@ -12,6 +12,8 @@ import PurchaseFormPage from './pages/purchases/PurchaseFormPage'
 import SalesPage from './pages/sales/SalesPage'
 import ShippingPage from './pages/sales/ShippingPage'
 import POSPage from './pages/sales/POSPage'
+import CustomersPage from './pages/customers/CustomersPage'
+import CustomerFormPage from './pages/customers/CustomerFormPage'
 
 import DailyCashPage from './pages/cash/DailyCashPage'
 import ReportsPage from './pages/reports/ReportsPage'
@@ -75,6 +77,11 @@ function App() {
                 <Route path="products" element={<ProductsPage />} />
                 <Route path="products/new" element={<ProtectedRoute requireAdmin><ProductFormPage /></ProtectedRoute>} />
                 <Route path="products/:id" element={<ProtectedRoute requireAdmin><ProductFormPage /></ProtectedRoute>} />
+
+                {/* Customers */}
+                <Route path="customers" element={<CustomersPage />} />
+                <Route path="customers/new" element={<CustomerFormPage />} />
+                <Route path="customers/:id" element={<CustomerFormPage />} />
 
                 {/* Purchases - Admin only */}
                 <Route path="purchases" element={<ProtectedRoute requireAdmin><PurchasesPage /></ProtectedRoute>} />

@@ -38,6 +38,7 @@ export default function MainLayout() {
         { to: '/sales', icon: <Receipt size={20} />, label: 'Ventas' },
         { to: '/shipping', icon: <Truck size={20} />, label: 'Envíos' },
         { to: '/products', icon: <Package size={20} />, label: 'Inventario' },
+        { to: '/customers', icon: <Users size={20} />, label: 'Clientes' },
 
         { to: '/suppliers', icon: <Users size={20} />, label: 'Proveedores', adminOnly: true },
         { to: '/purchases', icon: <ShoppingCart size={20} />, label: 'Compras', adminOnly: true },

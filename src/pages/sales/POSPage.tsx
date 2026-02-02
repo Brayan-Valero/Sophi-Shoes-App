@@ -3,12 +3,11 @@ import { useNavigate, useLocation } from 'react-router-dom'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
-import { ProductVariant, PaymentMethod, ShippingType } from '../../types/database'
-
+import CustomerSelect from '../../components/sales/CustomerSelect'
+import { ProductVariant, PaymentMethod, ShippingType, Customer } from '../../types/database'
 import { useAuth } from '../../contexts/AuthContext'
 import {
     ArrowLeft,
-
     ShoppingBag,
     Search,
     Plus,
@@ -23,21 +22,9 @@ import {
     Printer
 } from 'lucide-react'
 
-
-
-import CustomerSelect from '../../components/sales/CustomerSelect'
-
 interface CartItem {
     variant: ProductVariant & { product?: { name: string } }
     quantity: number
-}
-
-interface Customer {
-    id: string
-    full_name: string
-    phone: string | null
-    email: string | null
-    notes: string | null
 }
 
 export default function POSPage() {
@@ -61,6 +48,9 @@ export default function POSPage() {
     const [shippingType, setShippingType] = useState<ShippingType>(isShippingMode ? 'dropi' : 'local')
     const [trackingNumber, setTrackingNumber] = useState('')
     const [shippingCost, setShippingCost] = useState(0)
+
+    // Electronic Invoicing
+    const [isElectronic, setIsElectronic] = useState(false)
 
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
@@ -179,7 +169,10 @@ export default function POSPage() {
                     shipping_type: shippingType,
                     shipping_status: shippingType === 'local' ? 'entregado' : 'pendiente',
                     tracking_number: trackingNumber || null,
-                    shipping_cost: shippingCost
+                    shipping_cost: shippingCost,
+                    // Electronic Fields
+                    is_electronic: isElectronic,
+                    dian_status: isElectronic ? 'pendiente' : null
                 })
                 .select('id')
 
@@ -246,6 +239,19 @@ export default function POSPage() {
 
     const handleSubmit = () => {
         setError(null)
+
+        // Validation for Electronic Invoicing
+        if (isElectronic) {
+            if (!selectedCustomer) {
+                setError('Debe seleccionar un cliente para facturación electrónica')
+                return
+            }
+            if (!selectedCustomer.email || !selectedCustomer.identification) {
+                setError('El cliente seleccionado no tiene datos completos (Documento o Email) para facturación electrónica')
+                return
+            }
+        }
+
         saleMutation.mutate()
     }
 
@@ -596,6 +602,24 @@ export default function POSPage() {
                         min="0"
                         max={subtotal}
                     />
+                </div>
+
+                {/* Invoicing Mode Selector */}
+                <div className="mb-4 pt-4 border-t border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-bold text-gray-800">Facturación Electrónica</label>
+                        <div
+                            className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors duration-200 ease-in-out ${isElectronic ? 'bg-primary-500' : 'bg-gray-300'}`}
+                            onClick={() => setIsElectronic(!isElectronic)}
+                        >
+                            <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${isElectronic ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                        </div>
+                    </div>
+                    <p className="text-[10px] text-gray-400">
+                        {isElectronic
+                            ? 'Se generará XML legal y se enviará a la DIAN. Requiere datos del cliente.'
+                            : 'Venta local simplificada sin reporte electrónico inmediato.'}
+                    </p>
                 </div>
 
                 {/* Totals */}

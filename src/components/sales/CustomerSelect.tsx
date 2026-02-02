@@ -3,13 +3,7 @@ import { Search, UserPlus, User, X, Check } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 
-interface Customer {
-    id: string
-    full_name: string
-    phone: string | null
-    email: string | null
-    notes: string | null
-}
+import { Customer } from '../../types/database'
 
 interface CustomerSelectProps {
     onSelect: (customer: Customer | null) => void
@@ -20,7 +14,13 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
     const [isOpen, setIsOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const [isCreating, setIsCreating] = useState(false)
-    const [newCustomerBadges, setNewCustomerBadges] = useState({ name: '', phone: '', email: '' })
+    const [newCustomer, setNewCustomer] = useState({
+        full_name: '',
+        phone: '',
+        email: '',
+        identification: '',
+        document_type: '13'
+    })
     const wrapperRef = useRef<HTMLDivElement>(null)
     const queryClient = useQueryClient()
 
@@ -33,7 +33,7 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
             const { data } = await supabase
                 .from('customers')
                 .select('*')
-                .or(`full_name.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
+                .or(`full_name.ilike.%${searchTerm}%,identification.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
                 .limit(5)
 
             return (data || []) as Customer[]
@@ -57,7 +57,13 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
             onSelect(data)
             setIsOpen(false)
             setIsCreating(false)
-            setNewCustomerBadges({ name: '', phone: '', email: '' })
+            setNewCustomer({
+                full_name: '',
+                phone: '',
+                email: '',
+                identification: '',
+                document_type: '13'
+            })
             setSearchTerm('')
             queryClient.invalidateQueries({ queryKey: ['customers'] })
         }
@@ -77,12 +83,8 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
 
     const handleCreate = (e: React.FormEvent) => {
         e.preventDefault()
-        if (!newCustomerBadges.name) return
-        createCustomerMutation.mutate({
-            full_name: newCustomerBadges.name,
-            phone: newCustomerBadges.phone,
-            email: newCustomerBadges.email
-        })
+        if (!newCustomer.full_name || !newCustomer.identification) return
+        createCustomerMutation.mutate(newCustomer as any)
     }
 
     if (selectedCustomer) {
@@ -99,7 +101,8 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
                 </div>
                 <button
                     onClick={() => onSelect(null)}
-                    className="p-1 hover:bg-blue-100 rounded-full text-blue-500"
+                    className="p-1 hover:bg-blue-200 rounded-full text-blue-600 transition-colors"
+                    title="Quitar cliente"
                 >
                     <X size={18} />
                 </button>
@@ -126,7 +129,7 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
                                 <input
                                     type="text"
                                     autoFocus
-                                    placeholder="Buscar por nombre o teléfono..."
+                                    placeholder="Buscar por nombre, cédula o NIT..."
                                     className="flex-1 outline-none text-sm"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -149,7 +152,7 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
                                         </div>
                                         <div>
                                             <p className="font-medium text-sm text-gray-800">{customer.full_name}</p>
-                                            <p className="text-xs text-gray-500">{customer.phone}</p>
+                                            <p className="text-[10px] text-gray-400">ID: {customer.identification} {customer.phone && `• Tel: ${customer.phone}`}</p>
                                         </div>
                                     </button>
                                 ))}
@@ -178,32 +181,53 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
 
                             <input
                                 required
-                                placeholder="Nombre Completo"
+                                placeholder="Nombre Completo / Razón Social"
                                 className="form-input text-sm"
-                                value={newCustomerBadges.name}
-                                onChange={e => setNewCustomerBadges({ ...newCustomerBadges, name: e.target.value })}
-                                autoFocus
+                                value={newCustomer.full_name}
+                                onChange={e => setNewCustomer({ ...newCustomer, full_name: e.target.value })}
                             />
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <select
+                                    className="form-input text-sm"
+                                    value={newCustomer.document_type}
+                                    onChange={e => setNewCustomer({ ...newCustomer, document_type: e.target.value })}
+                                >
+                                    <option value="13">C.C.</option>
+                                    <option value="31">NIT</option>
+                                    <option value="41">Pasaporte</option>
+                                </select>
+                                <input
+                                    required
+                                    placeholder="Identificación"
+                                    className="form-input text-sm"
+                                    value={newCustomer.identification}
+                                    onChange={e => setNewCustomer({ ...newCustomer, identification: e.target.value })}
+                                />
+                            </div>
+
                             <input
                                 placeholder="Teléfono"
                                 className="form-input text-sm"
-                                value={newCustomerBadges.phone}
-                                onChange={e => setNewCustomerBadges({ ...newCustomerBadges, phone: e.target.value })}
+                                value={newCustomer.phone}
+                                onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })}
                             />
+
                             <input
                                 type="email"
-                                placeholder="Email (Opcional)"
+                                required
+                                placeholder="Email (Correo para Factura Electrónica)"
                                 className="form-input text-sm"
-                                value={newCustomerBadges.email}
-                                onChange={e => setNewCustomerBadges({ ...newCustomerBadges, email: e.target.value })}
+                                value={newCustomer.email}
+                                onChange={e => setNewCustomer({ ...newCustomer, email: e.target.value })}
                             />
 
                             <button
                                 type="submit"
-                                disabled={createCustomerMutation.isPending || !newCustomerBadges.name}
+                                disabled={createCustomerMutation.isPending || !newCustomer.full_name || !newCustomer.identification}
                                 className="w-full btn-primary py-2 text-sm flex justify-center items-center gap-2"
                             >
-                                {createCustomerMutation.isPending ? 'Guardando...' : <><Check size={16} /> Guardar Cliente</>}
+                                {createCustomerMutation.isPending ? 'Guardando...' : <><Check size={16} /> Guardar y Seleccionar</>}
                             </button>
                         </form>
                     )}
