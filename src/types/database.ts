@@ -55,6 +55,7 @@ export interface Product {
     name: string
     description: string | null
     category: string | null
+    sku: string | null
     supplier_id: string | null
     is_active: boolean
     image_url: string | null
@@ -191,6 +192,8 @@ export interface InventoryMovement {
 export interface InventoryMovementInsert extends Omit<InventoryMovement, 'id' | 'created_at' | 'product_variant'> { }
 
 // Customer (Cliente) - Enhanced for Colombia Electronic Invoicing
+export type ClientType = 'standard' | 'shipping'
+
 export interface Customer {
     id: string
     full_name: string
@@ -205,6 +208,7 @@ export interface Customer {
     municipality_code: string | null // 5 digits (e.g. 05001 for Medellín)
     department_code: string | null // 2 digits (e.g. 05 for Antioquia)
     is_active: boolean
+    client_type: ClientType
     created_at: string
     updated_at: string
 }

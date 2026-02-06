@@ -57,8 +57,10 @@ CREATE TABLE IF NOT EXISTS public.products (
   name TEXT NOT NULL,
   description TEXT,
   category TEXT,
+  sku TEXT UNIQUE,
   supplier_id UUID REFERENCES public.suppliers(id) ON DELETE SET NULL,
   is_active BOOLEAN DEFAULT true,
+  image_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -340,11 +342,20 @@ CREATE POLICY "Vendedor can view expenses" ON public.expenses FOR SELECT USING (
 -- =============================================
 -- 12. CUSTOMERS TABLE (Clientes)
 -- =============================================
-CREATE TABLE IF NOT EXISTS public.customers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   full_name TEXT NOT NULL,
-  phone TEXT,
+  document_type TEXT DEFAULT '13',
+  identification TEXT,
+  verification_digit TEXT,
+  person_type TEXT DEFAULT '2',
+  tax_regime TEXT DEFAULT '49',
   email TEXT,
+  phone TEXT,
+  address TEXT,
+  municipality_code TEXT,
+  department_code TEXT,
+  is_active BOOLEAN DEFAULT true,
+  client_type TEXT CHECK (client_type IN ('standard', 'shipping')) DEFAULT 'standard',
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

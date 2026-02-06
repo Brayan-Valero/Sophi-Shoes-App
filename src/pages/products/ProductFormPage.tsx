@@ -11,8 +11,6 @@ interface VariantForm {
     size: string
     color: string
     sku: string
-    cost: number
-    price: number
     stock: number
     min_stock: number
     image_url: string | null
@@ -28,12 +26,22 @@ export default function ProductFormPage() {
         name: '',
         description: '',
         category: '',
+        sku: '',
         supplier_id: null,
         is_active: true,
         image_url: null,
     })
     const [variants, setVariants] = useState<VariantForm[]>([])
     const [error, setError] = useState<string | null>(null)
+
+    // Product-level pricing (same for all variants)
+    const [productCost, setProductCost] = useState<number>(0)
+    const [productPrice, setProductPrice] = useState<number>(0)
+
+    // Auto-calculate profit margin
+    const profitMargin = productCost > 0 ? ((productPrice - productCost) / productCost * 100).toFixed(1) : '0'
+
+    const [bulkColors, setBulkColors] = useState<string>('')
 
     // Fetch suppliers for dropdown
     const { data: suppliers = [] } = useQuery({
@@ -48,6 +56,26 @@ export default function ProductFormPage() {
             return data as Supplier[]
         },
     })
+
+    // Fetch categories for dropdown
+    const { data: categories = [] } = useQuery<{ id: string; name: string }[]>({
+        queryKey: ['categories'],
+        queryFn: async () => {
+            if (!isSupabaseConfigured()) return []
+            const { data, error } = await supabase
+                .from('categories')
+                .select('id, name')
+                .order('name')
+            if (error) {
+                console.error('Error fetching categories:', error)
+                return []
+            }
+            return data ?? []
+        },
+    })
+
+
+
 
     // Fetch product for editing
     const { data: product, isLoading: loadingProduct } = useQuery({
@@ -72,19 +100,22 @@ export default function ProductFormPage() {
                 name: product.name,
                 description: product.description || '',
                 category: product.category || '',
+                sku: product.sku || '',
                 supplier_id: product.supplier_id,
                 is_active: product.is_active,
                 image_url: product.image_url || null,
             })
-            if (product.variants) {
+            if (product.variants && product.variants.length > 0) {
+                // Set product-level price from first variant
+                setProductCost(product.variants[0].cost || 0)
+                setProductPrice(product.variants[0].price || 0)
+
                 setVariants(
                     product.variants.map((v) => ({
                         id: v.id,
                         size: v.size,
                         color: v.color,
                         sku: v.sku || '',
-                        cost: v.cost,
-                        price: v.price,
                         stock: v.stock,
                         min_stock: v.min_stock,
                         image_url: v.image_url || null,
@@ -94,6 +125,15 @@ export default function ProductFormPage() {
         }
     }, [product])
 
+    const generateSku = (base: string, suffix?: string) => {
+        const cleanBase = base.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 3)
+        const random = Math.floor(1000 + Math.random() * 9000).toString()
+        if (suffix) {
+            return `${cleanBase}-${suffix.toUpperCase()}-${random}`
+        }
+        return `${cleanBase}-${random}`
+    }
+
     // Save mutation
     const saveMutation = useMutation({
         mutationFn: async () => {
@@ -102,15 +142,23 @@ export default function ProductFormPage() {
             let productId = id
 
             if (isEditing && id) {
+                const finalFormData = { ...formData, updated_at: new Date().toISOString() }
+                if (!finalFormData.sku) {
+                    finalFormData.sku = generateSku(formData.name)
+                }
                 const { error } = await supabase
                     .from('products')
-                    .update({ ...formData, updated_at: new Date().toISOString() })
+                    .update(finalFormData)
                     .eq('id', id)
                 if (error) throw error
             } else {
+                const finalFormData = { ...formData }
+                if (!finalFormData.sku) {
+                    finalFormData.sku = generateSku(formData.name)
+                }
                 const { data, error } = await supabase
                     .from('products')
-                    .insert(formData)
+                    .insert(finalFormData)
                     .select('id')
                     .single()
                 if (error) throw error
@@ -130,15 +178,21 @@ export default function ProductFormPage() {
                     }
                 }
 
-                // Upsert variants
+                // Upsert variants - apply product-level pricing to all
                 for (const variant of variants) {
+                    let variantSku = variant.sku
+                    if (!variantSku) {
+                        const productPrefix = formData.sku || 'PROD'
+                        variantSku = `${productPrefix}-${variant.size}-${variant.color.toUpperCase().substring(0, 3)}`
+                    }
+
                     const variantData: ProductVariantInsert = {
                         product_id: productId,
                         size: variant.size,
                         color: variant.color,
-                        sku: variant.sku || null,
-                        cost: variant.cost,
-                        price: variant.price,
+                        sku: variantSku,
+                        cost: productCost,
+                        price: productPrice,
                         stock: variant.stock,
                         min_stock: variant.min_stock,
                         image_url: variant.image_url || null,
@@ -187,16 +241,70 @@ export default function ProductFormPage() {
     }
 
     const addVariant = () => {
-        setVariants((prev) => [
-            ...prev,
-            { size: '', color: '', sku: '', cost: 0, price: 0, stock: 0, min_stock: 0, image_url: null },
-        ])
+        setVariants((prev) => {
+            let nextSize = '35'
+            if (prev.length > 0) {
+                const lastSize = prev[prev.length - 1].size
+                const lastSizeNum = parseInt(lastSize)
+                if (!isNaN(lastSizeNum)) {
+                    nextSize = (lastSizeNum + 1).toString()
+                }
+            }
+            return [
+                ...prev,
+                { size: nextSize, color: '', sku: '', stock: 0, min_stock: 0, image_url: null },
+            ]
+        })
+    }
+
+    const quickAddSizes = () => {
+        const isMen = formData.category === 'Caballero'
+        const start = 35
+        const end = isMen ? 43 : 40
+
+        const colors = bulkColors.split(',').map(c => c.trim()).filter(c => c !== '')
+        if (colors.length === 0) colors.push('') // At least one empty if none provided
+
+        const newVariants: VariantForm[] = []
+
+        for (const color of colors) {
+            for (let s = start; s <= end; s++) {
+                newVariants.push({
+                    size: s.toString(),
+                    color: color,
+                    sku: '',
+                    stock: 0,
+                    min_stock: 0,
+                    image_url: null
+                })
+            }
+        }
+        setVariants(newVariants)
     }
 
     const updateVariant = (index: number, field: keyof VariantForm, value: string | number | null) => {
-        setVariants((prev) =>
-            prev.map((v, i) => (i === index ? { ...v, [field]: value } : v))
-        )
+        setVariants((prev) => {
+            const variantToUpdate = prev[index]
+            if (!variantToUpdate) return prev
+
+            // If changing color, try to inherit the image from other variants of that color
+            if (field === 'color' && typeof value === 'string') {
+                const colorValue = value.trim()
+                const existingImage = prev.find(v => v.color.toLowerCase() === colorValue.toLowerCase() && v.image_url)?.image_url
+                return prev.map((v, i) =>
+                    i === index ? { ...v, color: value, image_url: existingImage || v.image_url } : v
+                )
+            }
+
+            // If changing image, apply to all variants of the same color
+            if (field === 'image_url' && variantToUpdate.color) {
+                return prev.map((v) =>
+                    v.color.toLowerCase() === variantToUpdate.color.toLowerCase() ? { ...v, image_url: value as string | null } : v
+                )
+            }
+
+            return prev.map((v, i) => (i === index ? { ...v, [field]: value } : v))
+        })
     }
 
     const removeVariant = (index: number) => {
@@ -258,34 +366,51 @@ export default function ProductFormPage() {
                         </div>
                     )}
 
-                    {/* Name */}
-                    <div className="form-group">
-                        <label htmlFor="name" className="form-label">Nombre del Producto *</label>
-                        <input
-                            id="name"
-                            name="name"
-                            type="text"
-                            value={formData.name}
-                            onChange={handleChange}
-                            className="form-input"
-                            placeholder="Ej: Bota Elegante Cuero"
-                            required
-                        />
+                    {/* Name & SKU */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="form-group sm:col-span-2">
+                            <label htmlFor="name" className="form-label">Nombre del Producto *</label>
+                            <input
+                                id="name"
+                                name="name"
+                                type="text"
+                                value={formData.name}
+                                onChange={handleChange}
+                                className="form-input"
+                                placeholder="Ej: Bota Elegante Cuero"
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="sku" className="form-label">SKU (Opcional)</label>
+                            <input
+                                id="sku"
+                                name="sku"
+                                type="text"
+                                value={formData.sku || ''}
+                                onChange={handleChange}
+                                className="form-input"
+                                placeholder="Auto-generado"
+                            />
+                        </div>
                     </div>
 
                     {/* Category & Supplier */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="form-group">
                             <label htmlFor="category" className="form-label">Categoría</label>
-                            <input
+                            <select
                                 id="category"
                                 name="category"
-                                type="text"
                                 value={formData.category || ''}
                                 onChange={handleChange}
-                                className="form-input"
-                                placeholder="Ej: Botas, Tacones, Deportivos"
-                            />
+                                className="form-select"
+                            >
+                                <option value="">Seleccionar categoría...</option>
+                                {categories.map((cat) => (
+                                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                ))}
+                            </select>
                         </div>
                         <div className="form-group">
                             <label htmlFor="supplier_id" className="form-label">Proveedor</label>
@@ -301,6 +426,43 @@ export default function ProductFormPage() {
                                     <option key={s.id} value={s.id}>{s.name}</option>
                                 ))}
                             </select>
+                        </div>
+                    </div>
+
+                    {/* Pricing - same for all variants */}
+                    <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
+                        <h3 className="text-sm font-semibold text-emerald-800 mb-3">💰 Precios (aplica a todas las variantes)</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="form-group">
+                                <label className="form-label">Costo $</label>
+                                <input
+                                    type="number"
+                                    value={productCost}
+                                    onChange={(e) => setProductCost(Number(e.target.value))}
+                                    className="form-input"
+                                    min="0"
+                                    step="1000"
+                                    placeholder="0"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Precio Venta $</label>
+                                <input
+                                    type="number"
+                                    value={productPrice}
+                                    onChange={(e) => setProductPrice(Number(e.target.value))}
+                                    className="form-input"
+                                    min="0"
+                                    step="1000"
+                                    placeholder="0"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Margen de Ganancia</label>
+                                <div className={`form-input bg-gray-100 flex items-center justify-center font-bold text-lg ${Number(profitMargin) >= 30 ? 'text-emerald-600' : Number(profitMargin) >= 15 ? 'text-amber-600' : 'text-red-600'}`}>
+                                    {profitMargin}%
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -334,11 +496,40 @@ export default function ProductFormPage() {
                 {/* Variants card */}
                 <div className="card">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold text-gray-800">Variantes</h2>
-                        <button type="button" onClick={addVariant} className="btn-secondary flex items-center gap-2">
-                            <Plus size={16} />
-                            Agregar Variante
-                        </button>
+                        <div className="flex flex-col">
+                            <h2 className="text-lg font-semibold text-gray-800">Variantes</h2>
+                            <p className="text-xs text-gray-400">Tallas y colores disponibles</p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-4 items-end">
+                            {!isEditing && variants.length === 0 && (
+                                <div className="flex-1">
+                                    <label className="text-xs text-gray-500 block mb-1">🎨 Colores (separados por coma)</label>
+                                    <input
+                                        type="text"
+                                        value={bulkColors}
+                                        onChange={(e) => setBulkColors(e.target.value)}
+                                        className="form-input text-sm py-1.5"
+                                        placeholder="Ej: Negro, Miel, Blanco"
+                                    />
+                                </div>
+                            )}
+                            <div className="flex gap-2">
+                                {!isEditing && variants.length === 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={quickAddSizes}
+                                        className="btn-secondary text-xs py-2 px-4 flex items-center gap-1 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 shadow-sm"
+                                    >
+                                        <Plus size={14} />
+                                        Generar Todo (35-{formData.category === 'Caballero' ? '43' : '40'})
+                                    </button>
+                                )}
+                                <button type="button" onClick={addVariant} className="btn-secondary flex items-center gap-2 py-2 px-4">
+                                    <Plus size={16} />
+                                    Agregar Talla
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     {variants.length === 0 ? (
@@ -414,28 +605,6 @@ export default function ProductFormPage() {
                                                     onChange={(e) => updateVariant(index, 'min_stock', Number(e.target.value))}
                                                     className="form-input text-sm"
                                                     min="0"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs text-gray-500">Costo</label>
-                                                <input
-                                                    type="number"
-                                                    value={variant.cost}
-                                                    onChange={(e) => updateVariant(index, 'cost', Number(e.target.value))}
-                                                    className="form-input text-sm"
-                                                    min="0"
-                                                    step="0.01"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs text-gray-500">Precio</label>
-                                                <input
-                                                    type="number"
-                                                    value={variant.price}
-                                                    onChange={(e) => updateVariant(index, 'price', Number(e.target.value))}
-                                                    className="form-input text-sm"
-                                                    min="0"
-                                                    step="0.01"
                                                 />
                                             </div>
                                             <div className="col-span-2 sm:col-span-2">
