@@ -13,7 +13,6 @@ import {
     Plus,
     Minus,
     Trash2,
-    CreditCard,
     Banknote,
     Smartphone,
     CheckCircle,
@@ -358,54 +357,75 @@ export default function POSPage() {
 
                 {/* Products grid */}
                 <div className="flex-1 overflow-y-auto">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {filteredVariants.map((variant) => {
-                            const inCart = cart.find((item) => item.variant.id === variant.id)
-                            return (
-                                <button
-                                    key={variant.id}
-                                    onClick={() => addToCart(variant)}
-                                    disabled={inCart && inCart.quantity >= variant.stock}
-                                    className={`card p-0 overflow-hidden text-left hover:shadow-md transition-all ${inCart ? 'ring-2 ring-primary-500' : ''
-                                        } ${inCart && inCart.quantity >= variant.stock ? 'opacity-50' : ''}`}
-                                >
-                                    <div className="aspect-[4/3] bg-gray-100 relative">
-                                        {(variant.image_url || variant.product?.image_url) ? (
-                                            <img
-                                                src={variant.image_url || variant.product?.image_url || undefined}
-                                                alt={variant.product?.name}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center">
-                                                <Package className="text-gray-300" size={32} />
-                                            </div>
-                                        )}
-                                        {inCart && (
-                                            <div className="absolute top-2 right-2 bg-primary-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
-                                                {inCart.quantity}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="p-3">
-                                        <p className="font-medium text-gray-800 text-xs truncate">
-                                            {variant.product?.name}
-                                        </p>
-                                        <p className="text-[10px] text-gray-500">
-                                            {variant.size} - {variant.color}
-                                        </p>
-                                        <div className="flex justify-between items-center mt-1">
-                                            <span className="font-bold text-primary-600 text-sm">
-                                                ${variant.price.toLocaleString()}
-                                            </span>
-                                            <span className="text-[10px] text-gray-400">
-                                                Stk: {variant.stock}
-                                            </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {/* Group filtered variants by product+color for display */}
+                        {Object.values(filteredVariants.reduce((acc: any, v) => {
+                            const key = `${v.product_id}-${v.color}`
+                            if (!acc[key]) {
+                                acc[key] = {
+                                    id: key,
+                                    productName: v.product?.name,
+                                    color: v.color,
+                                    price: v.price,
+                                    image_url: v.image_url || v.product?.image_url,
+                                    variants: []
+                                }
+                            }
+                            acc[key].variants.push(v)
+                            return acc
+                        }, {})).map((group: any) => (
+                            <div key={group.id} className="card p-0 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+                                <div className="aspect-[16/9] bg-gray-50 relative group">
+                                    {group.image_url ? (
+                                        <img src={group.image_url} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                            <Package className="text-gray-200" size={48} />
                                         </div>
+                                    )}
+                                    <div className="absolute top-2 left-2">
+                                        <span className="bg-white/90 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-gray-700 shadow-sm border border-gray-100">
+                                            {group.color}
+                                        </span>
                                     </div>
-                                </button>
-                            )
-                        })}
+                                    <div className="absolute top-2 right-2">
+                                        <span className="bg-primary-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">
+                                            ${group.price.toLocaleString()}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="p-3 flex-1 flex flex-col">
+                                    <h3 className="font-bold text-gray-800 text-sm mb-2 truncate">
+                                        {group.productName}
+                                    </h3>
+
+                                    <p className="text-[10px] text-gray-400 font-medium mb-2">Tallas Disponibles:</p>
+                                    <div className="flex flex-wrap gap-1.5 mt-auto">
+                                        {group.variants.sort((a: any, b: any) => parseInt(a.size) - parseInt(b.size)).map((v: any) => {
+                                            const inCart = cart.find(item => item.variant.id === v.id)
+                                            return (
+                                                <button
+                                                    key={v.id}
+                                                    onClick={() => addToCart(v)}
+                                                    disabled={v.stock <= (inCart?.quantity || 0)}
+                                                    className={`
+                                                        min-w-[32px] h-8 flex flex-col items-center justify-center rounded border transition-all
+                                                        ${inCart
+                                                            ? 'bg-primary-500 border-primary-600 text-white shadow-sm'
+                                                            : 'bg-white border-gray-200 text-gray-700 hover:border-primary-400 hover:text-primary-600'}
+                                                        ${v.stock <= (inCart?.quantity || 0) ? 'opacity-30 cursor-not-allowed grayscale' : ''}
+                                                    `}
+                                                    title={`Stock: ${v.stock}`}
+                                                >
+                                                    <span className="text-xs font-bold leading-none">{v.size}</span>
+                                                    {v.stock < 5 && v.stock > 0 && <span className="text-[8px] opacity-70 leading-none mt-0.5">{v.stock}</span>}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                     {filteredVariants.length === 0 && (
                         <div className="text-center py-8">
@@ -568,7 +588,6 @@ export default function POSPage() {
                     <div className="grid grid-cols-3 gap-2">
                         {[
                             { value: 'efectivo', label: 'Efectivo', icon: <Banknote size={18} />, hidden: isShippingMode },
-                            { value: 'tarjeta', label: 'Tarjeta', icon: <CreditCard size={18} />, hidden: isShippingMode },
                             { value: 'transferencia', label: 'Transf.', icon: <Smartphone size={18} />, hidden: isShippingMode },
                             { value: 'mixto', label: 'Mixto', icon: <Banknote size={18} />, hidden: isShippingMode },
                             { value: 'dropi', label: 'Dropi', icon: <Package size={18} />, hidden: !isShippingMode },

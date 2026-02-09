@@ -101,9 +101,10 @@ function App() {
                 {/* Reports - Admin only */}
                 <Route path="reports" element={<ProtectedRoute requireAdmin><ReportsPage /></ProtectedRoute>} />
 
-                {/* Print Receipt - Protected but no layout */}
-                <Route path="print/sale/:id" element={<ProtectedRoute><ReceiptPage /></ProtectedRoute>} />
             </Route>
+
+            {/* Print Receipt - Protected but no layout */}
+            <Route path="print/sale/:id" element={<ProtectedRoute><ReceiptPage /></ProtectedRoute>} />
 
 
             {/* Catch all */}

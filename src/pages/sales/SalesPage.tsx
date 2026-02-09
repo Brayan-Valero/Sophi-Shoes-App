@@ -229,30 +229,55 @@ export default function SalesPage() {
                                     </div>
 
                                     <div className="table-container">
-
                                         <table>
                                             <thead>
                                                 <tr>
                                                     <th>Producto</th>
-                                                    <th>Variante</th>
-                                                    <th className="text-right">Cantidad</th>
-                                                    <th className="text-right">Precio</th>
+                                                    <th>Color</th>
+                                                    <th>Tallas</th>
+                                                    <th className="text-right">Cant. Total</th>
+                                                    <th className="text-right">Precio Prom.</th>
                                                     <th className="text-right">Subtotal</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {sale.items.map((item: any) => (
-                                                    <tr key={item.id}>
-                                                        <td className="font-medium">
-                                                            {item.product_variant?.product?.name || 'Producto'}
-                                                        </td>
+                                                {/* Group items by color for display */}
+                                                {Object.values((sale.items || []).reduce((acc: any, item: any) => {
+                                                    const color = item.product_variant?.color || 'Sin Color'
+                                                    if (!acc[color]) {
+                                                        acc[color] = {
+                                                            name: item.product_variant?.product?.name || 'Producto',
+                                                            color,
+                                                            sizes: [],
+                                                            totalQty: 0,
+                                                            avgPrice: 0,
+                                                            subtotal: 0
+                                                        }
+                                                    }
+                                                    if (!acc[color].sizes.includes(item.product_variant?.size)) {
+                                                        acc[color].sizes.push(item.product_variant?.size)
+                                                    }
+                                                    acc[color].totalQty += item.quantity
+                                                    acc[color].subtotal += item.subtotal
+                                                    acc[color].avgPrice = acc[color].subtotal / acc[color].totalQty
+                                                    return acc
+                                                }, {})).map((group: any, idx: number) => (
+                                                    <tr key={idx}>
+                                                        <td className="font-medium">{group.name}</td>
+                                                        <td>{group.color}</td>
                                                         <td>
-                                                            {item.product_variant?.size} - {item.product_variant?.color}
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {group.sizes.sort().map((s: string) => (
+                                                                    <span key={s} className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs border border-blue-100">
+                                                                        {s}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
                                                         </td>
-                                                        <td className="text-right">{item.quantity}</td>
-                                                        <td className="text-right">${item.unit_price.toLocaleString()}</td>
-                                                        <td className="text-right font-medium">
-                                                            ${item.subtotal.toLocaleString()}
+                                                        <td className="text-right font-bold">{group.totalQty}</td>
+                                                        <td className="text-right">${group.avgPrice.toLocaleString()}</td>
+                                                        <td className="text-right font-bold">
+                                                            ${group.subtotal.toLocaleString()}
                                                         </td>
                                                     </tr>
                                                 ))}

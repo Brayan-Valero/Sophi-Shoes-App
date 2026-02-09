@@ -6,6 +6,7 @@ import { Product } from '../../types/database'
 import { useAuth } from '../../contexts/AuthContext'
 import { Plus, Search, Package, Edit, ChevronDown, ChevronUp, AlertTriangle, FileDown, Camera } from 'lucide-react'
 import { exportToCSV } from '../../utils/exportUtils'
+import { groupVariantsByColor } from '../../utils/variantUtils'
 
 
 
@@ -230,41 +231,41 @@ export default function ProductsPage() {
                                             <thead>
                                                 <tr>
                                                     <th className="w-12">Foto</th>
-                                                    <th>Talla</th>
                                                     <th>Color</th>
-                                                    <th>SKU</th>
-                                                    {isAdmin && <th className="text-right">Costo</th>}
+                                                    <th>Tallas</th>
+                                                    <th className="text-right">Stock Total</th>
                                                     <th className="text-right">Precio</th>
-                                                    <th className="text-right">Stock</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {product.variants.map((variant) => (
-                                                    <tr key={variant.id}>
+                                                {groupVariantsByColor(product.variants).map((group, idx) => (
+                                                    <tr key={idx}>
                                                         <td>
-                                                            {variant.image_url ? (
-                                                                <img src={variant.image_url} alt="" className="w-8 h-8 rounded object-cover border" />
+                                                            {group.image_url ? (
+                                                                <img src={group.image_url} alt="" className="w-10 h-10 rounded object-cover border" />
                                                             ) : (
-                                                                <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
-                                                                    <Camera size={12} className="text-gray-400" />
+                                                                <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+                                                                    <Camera size={16} className="text-gray-400" />
                                                                 </div>
                                                             )}
                                                         </td>
-                                                        <td className="font-medium">{variant.size}</td>
-                                                        <td>{variant.color}</td>
-                                                        <td className="text-gray-500">{variant.sku || '-'}</td>
-                                                        {isAdmin && <td className="text-right">${variant.cost.toLocaleString()}</td>}
-                                                        <td className="text-right">${variant.price.toLocaleString()}</td>
-
+                                                        <td className="font-semibold text-gray-800">{group.color}</td>
+                                                        <td>
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {group.sizes.map(size => (
+                                                                    <span key={size} className="bg-gray-100 px-2 py-0.5 rounded text-xs border border-gray-200">
+                                                                        {size}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </td>
                                                         <td className="text-right">
-                                                            <span
-                                                                className={`font-medium ${variant.stock <= variant.min_stock
-                                                                    ? 'text-red-600'
-                                                                    : 'text-green-600'
-                                                                    }`}
-                                                            >
-                                                                {variant.stock}
+                                                            <span className={`font-bold ${group.totalStock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                                {group.totalStock}
                                                             </span>
+                                                        </td>
+                                                        <td className="text-right font-medium">
+                                                            ${(product.variants?.[0]?.price || 0).toLocaleString()}
                                                         </td>
                                                     </tr>
                                                 ))}

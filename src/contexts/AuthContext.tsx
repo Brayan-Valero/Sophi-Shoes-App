@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [profile, setProfile] = useState<Profile | null>(null)
     // CRITICAL CHANGE: Default to FALSE to show Login screen immediately.
     // We only set to true if we detect a session later.
-    const [loading, setLoading] = useState(false)
+    const [loading, setLoading] = useState(true)
 
     // Fix: Use Ref to track profile in callbacks without stale closures
     const profileRef = useRef<Profile | null>(null)
