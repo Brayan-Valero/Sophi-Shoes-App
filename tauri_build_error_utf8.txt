@@ -1,0 +1,141 @@
+﻿
+> sophi-shoes-app@0.1.0 tauri
+> tauri build
+
+node.exe :         
+Info Looking up 
+installed tauri 
+packages to check 
+mismatched versions...
+En C:\Program 
+Files\nodejs\npm.ps1: 
+29 Carácter: 3
++   & $NODE_EXE 
+$NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (        In   
+ fo Lo...hed versi    
+ons...:String) []    
+, RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+        Warn The 
+bundle identifier 
+"com.sophishoes.app" 
+set in 
+`tauri.conf.json 
+identifier` ends with 
+`.app`. This is not 
+recommended because 
+it conflicts with the 
+application bundle 
+extension on macOS.
+     Running 
+beforeBuildCommand 
+`npm run build`
+
+> sophi-shoes-app@0.1.0 build
+> tsc -b && vite build
+
+[36mvite v6.4.1 [32mbuilding for production...[36m[39m
+transforming...
+[32mÔ£ô[39m 1704 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                 [39m[1m[2m  0.76 kB[22m[1m[22m[2m Ôöé gzip:   0.42 kB[22m
+[2mdist/[22m[35massets/index-Ci44eWG3.css  [39m[1m[2m 51.92 kB[22m[1m[22m[2m Ôöé gzip:   8.08 kB[22m
+[2mdist/[22m[36massets/index-kWP8hajI.js   [39m[1m[33m574.01 kB[39m[22m[2m Ôöé gzip: 154.75 kB[22m
+[33m
+(!) Some chunks are 
+larger than 500 kB 
+after minification. 
+Consider:
+- Using dynamic 
+import() to 
+code-split the 
+application
+- Use build.rollupOpti
+ons.output.manualChunk
+s to improve 
+chunking: https://roll
+upjs.org/configuration
+-options/#output-manua
+lchunks
+- Adjust chunk size 
+limit for this 
+warning via build.chun
+kSizeWarningLimit.[39
+m
+[32mÔ£ô built in 9.02s[39m
+   Compiling 
+sophi-shoes-app 
+v0.1.0 
+(C:\Antigravity 
+projects\Sophi Shoes 
+App\src-tauri)
+error: failed to run 
+custom build command 
+for `sophi-shoes-app 
+v0.1.0 
+(C:\Antigravity 
+projects\Sophi Shoes 
+App\src-tauri)`
+
+Caused by:
+  process didn't exit 
+successfully: 
+`C:\Antigravity 
+projects\Sophi Shoes A
+pp\src-tauri\target\re
+lease\build\sophi-shoe
+s-app-7c9306a608c592a2
+\build-script-build` 
+(exit code: 1)
+  --- stdout
+  cargo:rerun-if-env-c
+hanged=TAURI_CONFIG
+  cargo:rustc-check-cf
+g=cfg(desktop)
+  cargo:rustc-cfg=desk
+top
+  cargo:rustc-check-cf
+g=cfg(mobile)
+  cargo:rerun-if-chang
+ed=C:\Antigravity 
+projects\Sophi Shoes A
+pp\src-tauri\tauri.con
+f.json
+  cargo:rustc-env=TAUR
+I_ANDROID_PACKAGE_NAME
+_APP_NAME=app
+  cargo:rustc-env=TAUR
+I_ANDROID_PACKAGE_NAME
+_PREFIX=com_sophishoes
+  cargo:rustc-check-cf
+g=cfg(dev)
+  failed to read 
+plugin permissions: 
+failed to read file '\
+\?\C:\Users\Usuario\On
+eDrive\Documents\Antig
+ravity projects\Sophi 
+Shoes App\src-tauri\ta
+rget\release\build\tau
+ri-b53a55107d841efa\ou
+t\permissions\app\auto
+generated\commands\app
+_hide.toml': El 
+sistema no puede 
+encontrar la ruta 
+especificada. (os 
+error 3)
+failed to build app: 
+failed to build app
+       Error failed 
+to build app: failed 
+to build app

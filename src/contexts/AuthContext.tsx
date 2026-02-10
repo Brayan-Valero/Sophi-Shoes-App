@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .maybeSingle()
 
             // Race them
-            const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any
+            const { data, error } = await (Promise.race([fetchPromise, timeoutPromise]) as Promise<any>)
 
             if (error) {
                 console.error('Auth: Error fetching profile:', error)

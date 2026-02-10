@@ -1,0 +1,2 @@
+﻿src/components/ConnectivityTester.tsx(17,19): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+src/components/ConnectivityTester.tsx(36,21): error TS6133: 'data' is declared but its value is never read.

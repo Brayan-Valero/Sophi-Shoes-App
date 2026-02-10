@@ -14,7 +14,7 @@ export default function ConnectivityTester() {
     const addLog = (msg: string) => setLogs(prev => [...prev.slice(-4), msg])
 
     const checkConnection = async () => {
-        setStatus(prev => ({ ...prev, auth: 'checking', db: 'checking' }))
+        setStatus((prev: any) => ({ ...prev, auth: 'checking', db: 'checking' }))
         setLogs([]) // Clear logs
         const start = Date.now()
 
@@ -33,7 +33,7 @@ export default function ConnectivityTester() {
             const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 5000))
             const sessionPromise = supabase.auth.getSession()
 
-            const { data, error } = await Promise.race([sessionPromise, timeoutPromise]) as any
+            const { error } = await Promise.race([sessionPromise, timeoutPromise]) as any
             if (error) throw error
             addLog('Auth: OK')
         } catch (err: any) {
