@@ -18,6 +18,8 @@ import CustomerFormPage from './pages/customers/CustomerFormPage'
 import DailyCashPage from './pages/cash/DailyCashPage'
 import ReportsPage from './pages/reports/ReportsPage'
 import ReceiptPage from './pages/sales/ReceiptPage'
+import UsersPage from './pages/users/UsersPage'
+import UserFormPage from './pages/users/UserFormPage'
 
 
 import LoadingScreen from './components/ui/LoadingScreen'
@@ -82,6 +84,8 @@ function App() {
                 <Route path="customers" element={<CustomersPage />} />
                 <Route path="customers/new" element={<CustomerFormPage />} />
                 <Route path="customers/:id" element={<CustomerFormPage />} />
+                <Route path="users" element={<ProtectedRoute requireAdmin><UsersPage /></ProtectedRoute>} />
+                <Route path="users/:id" element={<ProtectedRoute requireAdmin><UserFormPage /></ProtectedRoute>} />
 
                 {/* Purchases - Admin only */}
                 <Route path="purchases" element={<ProtectedRoute requireAdmin><PurchasesPage /></ProtectedRoute>} />
@@ -90,13 +94,14 @@ function App() {
                 {/* Sales - All authenticated users */}
                 <Route path="sales" element={<SalesPage />} />
                 <Route path="shipping" element={<ShippingPage />} />
-                <Route path="sales/new" element={<POSPage />} />
+                {/* Sales - Local for Admin, Shipping for all */}
+                <Route path="sales/new" element={<ProtectedRoute requireAdmin><POSPage /></ProtectedRoute>} />
                 <Route path="shipping/new" element={<POSPage />} />
 
 
 
-                {/* Cash Register */}
-                <Route path="cash" element={<DailyCashPage />} />
+                {/* Cash Register - Admin only */}
+                <Route path="cash" element={<ProtectedRoute requireAdmin><DailyCashPage /></ProtectedRoute>} />
 
                 {/* Reports - Admin only */}
                 <Route path="reports" element={<ProtectedRoute requireAdmin><ReportsPage /></ProtectedRoute>} />

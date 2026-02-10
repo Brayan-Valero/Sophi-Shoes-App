@@ -5,12 +5,14 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 import { Sale } from '../../types/database'
 import { Plus, Search, Receipt, ChevronDown, ChevronUp, RotateCcw, Printer, FileDown } from 'lucide-react'
 import { exportToCSV } from '../../utils/exportUtils'
+import { useAuth } from '../../contexts/AuthContext'
 
 
 import ReturnModal from '../../components/sales/ReturnModal'
 
 
 export default function SalesPage() {
+    const { isAdmin } = useAuth()
     const [searchTerm, setSearchTerm] = useState('')
     const [expandedSale, setExpandedSale] = useState<string | null>(null)
     const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0])
@@ -91,7 +93,7 @@ export default function SalesPage() {
                         <FileDown size={20} />
                         Exportar
                     </button>
-                    <Link to="/sales/new" className="btn-success flex items-center gap-2 w-fit">
+                    <Link to={isAdmin ? "/sales/new" : "/shipping/new"} className="btn-success flex items-center gap-2 w-fit">
                         <Plus size={20} />
                         Nueva Venta
                     </Link>

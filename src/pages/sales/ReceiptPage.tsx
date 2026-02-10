@@ -51,10 +51,11 @@ export default function ReceiptPage() {
     return (
         <div className="bg-white text-black font-mono text-sm p-4 w-[80mm] mx-auto min-h-screen">
             <div className="text-center mb-4">
+                <img src="/logo.jpg" alt="Sophi Shoes" className="w-24 h-24 mx-auto mb-2 object-contain grayscale" />
                 <h1 className="text-xl font-bold uppercase">Sophi Shoes</h1>
-                <p>NIT: 900.123.456-7</p>
-                <p>Calle 123 #45-67</p>
-                <p>Tel: 300 123 4567</p>
+                <p>NIT: 123456789</p>
+                <p>Cc Maracay local 58</p>
+                <p>Tel: 3164726085</p>
             </div>
 
             <div className="mb-4 border-b border-dashed border-black pb-2">

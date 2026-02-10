@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
@@ -25,6 +25,8 @@ export default function PurchaseFormPage() {
     const [notes, setNotes] = useState('')
     const [items, setItems] = useState<PurchaseItemForm[]>([])
     const [searchTerm, setSearchTerm] = useState('')
+    const [selectedGroup, setSelectedGroup] = useState<any>(null)
+    const [tempQtys, setTempQtys] = useState<{ [variantId: string]: number }>({})
     const [error, setError] = useState<string | null>(null)
 
     // Fetch suppliers
@@ -57,31 +59,53 @@ export default function PurchaseFormPage() {
         },
     })
 
-    // Filter variants by search
-    const filteredVariants = variants.filter(
-        (v) =>
-            !items.some((item) => item.product_variant_id === v.id) &&
-            (v.product?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                v.size.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                v.color.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                v.sku?.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
+    // Group filtered variants by product + color
+    const groupedResults = Object.values(variants.filter(v =>
+        !items.some(item => item.product_variant_id === v.id) &&
+        (v.product?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            v.color.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            v.sku?.toLowerCase().includes(searchTerm.toLowerCase()))
+    ).reduce((acc: any, v) => {
+        const key = `${v.product.id}-${v.color}`
+        if (!acc[key]) {
+            acc[key] = {
+                id: key,
+                productName: v.product.name,
+                color: v.color,
+                image_url: v.image_url || v.product?.image_url,
+                variants: []
+            }
+        }
+        acc[key].variants.push(v)
+        return acc
+    }, {}))
 
     // Calculate total
     const total = items.reduce((sum, item) => sum + item.quantity * item.unit_cost, 0)
 
-    // Add item
-    const addItem = (variant: ProductVariant & { product?: { name: string } }) => {
-        setItems((prev) => [
-            ...prev,
-            {
-                product_variant_id: variant.id,
-                quantity: 1,
-                unit_cost: variant.cost,
-                variant,
-            },
-        ])
-        setSearchTerm('')
+    // Add multiple items at once
+    const addGroupItems = () => {
+        const newItems: PurchaseItemForm[] = []
+        Object.entries(tempQtys).forEach(([variantId, qty]) => {
+            if (qty > 0) {
+                const variant = variants.find(v => v.id === variantId)
+                if (variant) {
+                    newItems.push({
+                        product_variant_id: variant.id,
+                        quantity: qty,
+                        unit_cost: variant.cost,
+                        variant
+                    })
+                }
+            }
+        })
+
+        if (newItems.length > 0) {
+            setItems(prev => [...prev, ...newItems])
+            setSearchTerm('')
+            setSelectedGroup(null)
+            setTempQtys({})
+        }
     }
 
     // Update item
@@ -95,6 +119,21 @@ export default function PurchaseFormPage() {
     const removeItem = (index: number) => {
         setItems((prev) => prev.filter((_, i) => i !== index))
     }
+
+    // Group items for display in table
+    const displayGroups = Object.values(items.reduce((acc: any, item, idx) => {
+        const key = `${item.variant?.product?.id || item.variant?.product_id}-${item.variant?.color}`
+        if (!acc[key]) {
+            acc[key] = {
+                id: key,
+                productName: item.variant?.product?.name,
+                color: item.variant?.color,
+                items: []
+            }
+        }
+        acc[key].items.push({ ...item, idx })
+        return acc
+    }, {}))
 
     // Save mutation
     const saveMutation = useMutation({
@@ -285,27 +324,81 @@ export default function PurchaseFormPage() {
                         />
                     </div>
 
-                    {/* Search results */}
-                    {searchTerm && filteredVariants.length > 0 && (
-                        <div className="mb-4 max-h-48 overflow-y-auto border rounded-lg">
-                            {filteredVariants.slice(0, 10).map((variant) => (
-                                <button
-                                    key={variant.id}
-                                    type="button"
-                                    onClick={() => addItem(variant)}
-                                    className="w-full p-3 text-left hover:bg-gray-50 border-b last:border-b-0 flex justify-between items-center"
-                                >
-                                    <div>
-                                        <span className="font-medium">{variant.product?.name}</span>
-                                        <span className="text-gray-500 ml-2">
-                                            {variant.size} - {variant.color}
-                                        </span>
-                                        {variant.sku && (
-                                            <span className="text-gray-400 ml-2 text-sm">({variant.sku})</span>
-                                        )}
+                    {/* Search results grouped by color */}
+                    {searchTerm && groupedResults.length > 0 && (
+                        <div className="mb-4 max-h-60 overflow-y-auto border rounded-xl divide-y">
+                            {groupedResults.slice(0, 10).map((group: any) => (
+                                <div key={group.id} className="p-3">
+                                    <div
+                                        className="flex justify-between items-center cursor-pointer hover:text-primary-600 transition-colors"
+                                        onClick={() => {
+                                            if (selectedGroup?.id === group.id) {
+                                                setSelectedGroup(null)
+                                                setTempQtys({})
+                                            } else {
+                                                setSelectedGroup(group)
+                                                // Initialize temp qtys to 0
+                                                const initQtys: any = {}
+                                                group.variants.forEach((v: any) => initQtys[v.id] = '')
+                                                setTempQtys(initQtys)
+                                            }
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-gray-50 rounded flex items-center justify-center border font-bold text-xs">
+                                                {group.color[0]}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-gray-800">{group.productName}</p>
+                                                <p className="text-xs text-secondary-600 font-medium uppercase tracking-wider">{group.color}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-500 font-bold">
+                                                {group.variants.length} Tallas
+                                            </span>
+                                            <Plus
+                                                size={20}
+                                                className={`text-primary-600 transition-transform ${selectedGroup?.id === group.id ? 'rotate-45' : ''}`}
+                                            />
+                                        </div>
                                     </div>
-                                    <Plus size={20} className="text-primary-600" />
-                                </button>
+
+                                    {/* Expandable size entry grid */}
+                                    {selectedGroup?.id === group.id && (
+                                        <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-100 animate-fade-in">
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase mb-3 px-1">Indicar cantidades por talla:</p>
+                                            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 mb-4">
+                                                {group.variants.sort((a: any, b: any) => parseInt(a.size) - parseInt(b.size)).map((v: any) => (
+                                                    <div key={v.id} className="flex flex-col gap-1">
+                                                        <label className="text-[10px] font-bold text-center text-gray-500">{v.size}</label>
+                                                        <input
+                                                            type="number"
+                                                            placeholder="0"
+                                                            className="form-input p-1 text-center text-sm font-bold h-9"
+                                                            value={tempQtys[v.id] || ''}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value === '' ? '' : parseInt(e.target.value)
+                                                                setTempQtys(prev => ({ ...prev, [v.id]: val as any }))
+                                                            }}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex justify-end pt-2 border-t border-gray-200">
+                                                <button
+                                                    type="button"
+                                                    onClick={addGroupItems}
+                                                    disabled={!Object.values(tempQtys).some(q => (q as any) > 0)}
+                                                    className="btn-primary py-2 px-4 text-xs flex items-center gap-2"
+                                                >
+                                                    <Plus size={16} />
+                                                    Agregar Seleccionados
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             ))}
                         </div>
                     )}
@@ -331,44 +424,57 @@ export default function PurchaseFormPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {items.map((item, index) => (
-                                            <tr key={index}>
-                                                <td className="font-medium">{item.variant?.product?.name}</td>
-                                                <td>
-                                                    {item.variant?.size} - {item.variant?.color}
-                                                </td>
-                                                <td>
-                                                    <input
-                                                        type="number"
-                                                        value={item.quantity}
-                                                        onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
-                                                        className="form-input w-20 text-center mx-auto"
-                                                        min="1"
-                                                    />
-                                                </td>
-                                                <td>
-                                                    <input
-                                                        type="number"
-                                                        value={item.unit_cost}
-                                                        onChange={(e) => updateItem(index, 'unit_cost', Number(e.target.value))}
-                                                        className="form-input w-28 text-right ml-auto"
-                                                        min="0"
-                                                        step="0.01"
-                                                    />
-                                                </td>
-                                                <td className="text-right font-medium">
-                                                    ${(item.quantity * item.unit_cost).toLocaleString()}
-                                                </td>
-                                                <td>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeItem(index)}
-                                                        className="p-1 text-red-500 hover:bg-red-50 rounded"
-                                                    >
-                                                        <Trash2 size={18} />
-                                                    </button>
-                                                </td>
-                                            </tr>
+                                        {displayGroups.map((group: any) => (
+                                            <React.Fragment key={group.id}>
+                                                <tr className="bg-gray-50/50">
+                                                    <td colSpan={6} className="py-2 px-4 border-b">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-bold text-gray-800 text-sm">{group.productName}</span>
+                                                            <span className="text-[10px] bg-primary-100 text-primary-700 px-2 py-0.5 rounded font-bold uppercase tracking-wider">{group.color}</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {group.items.sort((a: any, b: any) => parseInt(a.variant.size) - parseInt(b.variant.size)).map((item: any) => (
+                                                    <tr key={item.idx} className="hover:bg-gray-50/30 transition-colors">
+                                                        <td className="pl-8 text-gray-400 text-xs italic">Talla {item.variant?.size}</td>
+                                                        <td className="text-gray-500 text-xs">{item.variant?.sku || '-'}</td>
+                                                        <td>
+                                                            <input
+                                                                type="number"
+                                                                value={item.quantity}
+                                                                onChange={(e) => updateItem(item.idx, 'quantity', Number(e.target.value))}
+                                                                className="form-input w-20 text-center mx-auto h-8 text-sm"
+                                                                min="1"
+                                                            />
+                                                        </td>
+                                                        <td>
+                                                            <div className="flex items-center gap-1 max-w-[120px] ml-auto">
+                                                                <span className="text-gray-400 text-xs">$</span>
+                                                                <input
+                                                                    type="number"
+                                                                    value={item.unit_cost}
+                                                                    onChange={(e) => updateItem(item.idx, 'unit_cost', Number(e.target.value))}
+                                                                    className="form-input w-full text-right h-8 text-sm"
+                                                                    min="0"
+                                                                    step="0.01"
+                                                                />
+                                                            </div>
+                                                        </td>
+                                                        <td className="text-right font-medium text-sm text-gray-700">
+                                                            ${(item.quantity * item.unit_cost).toLocaleString()}
+                                                        </td>
+                                                        <td className="text-right">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeItem(item.idx)}
+                                                                className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </React.Fragment>
                                         ))}
                                     </tbody>
                                     <tfoot>

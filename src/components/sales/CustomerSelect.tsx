@@ -83,8 +83,16 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
 
     const handleCreate = (e: React.FormEvent) => {
         e.preventDefault()
-        if (!newCustomer.full_name || !newCustomer.identification) return
-        createCustomerMutation.mutate(newCustomer as any)
+        if (!newCustomer.full_name) return
+
+        // Final check for document type and ID if not provided
+        const finalCustomer = {
+            ...newCustomer,
+            identification: newCustomer.identification || `TEMP-${Date.now()}`,
+            email: newCustomer.email || `temporal@sophi.com`
+        }
+
+        createCustomerMutation.mutate(finalCustomer as any)
     }
 
     if (selectedCustomer) {
@@ -164,12 +172,28 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
                                 )}
                             </div>
 
+                            {searchTerm.length > 2 && (
+                                <button
+                                    onClick={() => {
+                                        setNewCustomer(prev => ({ ...prev, full_name: searchTerm }))
+                                        setIsCreating(true)
+                                    }}
+                                    className="w-full p-3 bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100 flex items-center justify-center gap-2 border-t border-blue-100"
+                                >
+                                    <UserPlus size={16} />
+                                    Registrar "{searchTerm}" como nuevo cliente
+                                </button>
+                            )}
+
                             <button
-                                onClick={() => setIsCreating(true)}
-                                className="w-full p-3 bg-primary-50 text-primary-700 text-sm font-medium hover:bg-primary-100 flex items-center justify-center gap-2"
+                                onClick={() => {
+                                    setNewCustomer(prev => ({ ...prev, full_name: searchTerm }))
+                                    setIsCreating(true)
+                                }}
+                                className="w-full p-3 bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100 flex items-center justify-center gap-2"
                             >
                                 <UserPlus size={16} />
-                                Crear Nuevo Cliente
+                                Crear Cliente (Formulario Completo)
                             </button>
                         </>
                     ) : (
@@ -198,8 +222,7 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
                                     <option value="41">Pasaporte</option>
                                 </select>
                                 <input
-                                    required
-                                    placeholder="Identificación"
+                                    placeholder="Identificación (Opcional)"
                                     className="form-input text-sm"
                                     value={newCustomer.identification}
                                     onChange={e => setNewCustomer({ ...newCustomer, identification: e.target.value })}
@@ -215,8 +238,7 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
 
                             <input
                                 type="email"
-                                required
-                                placeholder="Email (Correo para Factura Electrónica)"
+                                placeholder="Email (Opcional - solo para factura)"
                                 className="form-input text-sm"
                                 value={newCustomer.email}
                                 onChange={e => setNewCustomer({ ...newCustomer, email: e.target.value })}
@@ -224,11 +246,14 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
 
                             <button
                                 type="submit"
-                                disabled={createCustomerMutation.isPending || !newCustomer.full_name || !newCustomer.identification}
+                                disabled={createCustomerMutation.isPending || !newCustomer.full_name}
                                 className="w-full btn-primary py-2 text-sm flex justify-center items-center gap-2"
                             >
                                 {createCustomerMutation.isPending ? 'Guardando...' : <><Check size={16} /> Guardar y Seleccionar</>}
                             </button>
+                            <p className="text-[10px] text-gray-400 text-center">
+                                * Para ventas locales solo se requiere el nombre. Identificación y Email se generarán automáticamente si se dejan vacíos.
+                            </p>
                         </form>
                     )}
                 </div>

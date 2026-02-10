@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -31,7 +31,7 @@ export default function POSPage() {
     const navigate = useNavigate()
     const location = useLocation()
     const queryClient = useQueryClient()
-    const { user } = useAuth()
+    const { user, isAdmin } = useAuth()
 
     const isShippingMode = location.pathname.includes('/shipping/new')
 
@@ -53,6 +53,13 @@ export default function POSPage() {
 
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
+
+    // Role Restriction: Redirect from local to shipping if not admin
+    useEffect(() => {
+        if (!isAdmin && !isShippingMode) {
+            navigate('/shipping/new', { replace: true })
+        }
+    }, [isAdmin, isShippingMode])
 
 
 

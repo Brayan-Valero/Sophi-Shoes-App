@@ -143,9 +143,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                     // CONTEXT-AWARE FETCH:
                     // If this is manual login, patience (10s, 3 retries).
-                    // If this is auto-restore (startup), fail fast (2s, 0 retries) to revert to login screen.
-                    const timeoutMs = isManualLogin ? 10000 : 2000
-                    const retries = isManualLogin ? 3 : 0
+                    // If this is auto-restore (startup/new tab), 5s, 1 retry for reliability.
+                    const timeoutMs = isManualLogin ? 10000 : 5000
+                    const retries = isManualLogin ? 3 : 1
 
                     console.log(`Auth: Handling event ${eventType}. Manual Login: ${isManualLogin}. Strategy: ${timeoutMs}ms timeout.`)
 
@@ -156,13 +156,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         manualLoginRef.current = false // Reset after attempt
 
                         // SECURITY ENFORCEMENT:
-                        if (!profileData) {
-                            console.error('Auth: CRITICAL - User authenticated but Profile fetch failed completely.')
-                            console.error('Auth: Enforcing Logout to prevent unauthorized access.')
-                            // If auto-restore failed, signOut immediately updates UI to Login state (user=null)
-                            // If manual login failed, users stays on login page anyway (or gets error).
+                        if (!profileData && isManualLogin) {
+                            console.error('Auth: CRITICAL - Manual login successful but Profile fetch failed.')
+                            console.error('Auth: Enforcing Logout to ensure clean state.')
                             signOut()
                             return
+                        }
+
+                        if (!profileData && !isManualLogin) {
+                            console.warn('Auth: Auto-restore profile fetch failed. Session kept but profile is null.')
+                            // We don't signOut() here to avoid kicking the user out of all tabs 
+                            // if a new tab (like a receipt) fails to load the profile quickly.
                         }
                     }
                 } else {

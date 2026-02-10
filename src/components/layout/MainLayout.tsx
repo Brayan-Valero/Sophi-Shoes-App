@@ -42,9 +42,10 @@ export default function MainLayout() {
 
         { to: '/suppliers', icon: <Users size={20} />, label: 'Proveedores', adminOnly: true },
         { to: '/purchases', icon: <ShoppingCart size={20} />, label: 'Compras', adminOnly: true },
-        { to: '/cash', icon: <DollarSign size={20} />, label: 'Caja Diaria' },
+        { to: '/cash', icon: <DollarSign size={20} />, label: 'Caja Diaria', adminOnly: true },
 
         { to: '/reports', icon: <BarChart size={20} />, label: 'Reportes', adminOnly: true },
+        { to: '/users', icon: <UserCircle size={20} />, label: 'Usuarios', adminOnly: true },
     ]
 
 
