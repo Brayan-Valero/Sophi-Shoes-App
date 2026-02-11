@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 import { Product } from '../../types/database'
 import { useAuth } from '../../contexts/AuthContext'
-import { Plus, Search, Package, Edit, ChevronDown, ChevronUp, AlertTriangle, FileDown, Camera } from 'lucide-react'
+import { Plus, Search, Package, Edit, ChevronDown, ChevronUp, AlertTriangle, FileDown, Camera, Trash2 } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { exportToCSV } from '../../utils/exportUtils'
 import { groupVariantsByColor } from '../../utils/variantUtils'
 
@@ -12,8 +13,33 @@ import { groupVariantsByColor } from '../../utils/variantUtils'
 
 export default function ProductsPage() {
     const { isAdmin } = useAuth()
+    const queryClient = useQueryClient()
     const [searchTerm, setSearchTerm] = useState('')
     const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
+
+    // Delete product mutation
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            if (!isSupabaseConfigured()) return
+            const { error } = await supabase
+                .from('products')
+                .delete()
+                .eq('id', id)
+            if (error) throw error
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] })
+        },
+        onError: (err: Error) => {
+            alert('No se puede eliminar el producto: ' + err.message)
+        }
+    })
+
+    const handleDelete = (id: string) => {
+        if (window.confirm('¿Está seguro de eliminar este producto y todas sus variantes?')) {
+            deleteMutation.mutate(id)
+        }
+    }
 
     // Fetch products with variants
     const { data: products = [], isLoading } = useQuery({
@@ -211,13 +237,22 @@ export default function ProductsPage() {
                                         )}
                                     </button>
                                     {isAdmin && (
-                                        <Link
-                                            to={`/products/${product.id}`}
-                                            className="btn-primary flex items-center gap-2"
-                                        >
-                                            <Edit size={16} />
-                                            Editar
-                                        </Link>
+                                        <div className="flex items-center gap-1">
+                                            <Link
+                                                to={`/products/${product.id}`}
+                                                className="btn-primary flex items-center gap-2"
+                                            >
+                                                <Edit size={16} />
+                                                Editar
+                                            </Link>
+                                            <button
+                                                onClick={() => handleDelete(product.id)}
+                                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Eliminar Producto"
+                                            >
+                                                <Trash2 size={20} />
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             </div>

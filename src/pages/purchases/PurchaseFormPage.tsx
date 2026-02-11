@@ -1,12 +1,13 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
-import { Supplier, ProductVariant, PurchaseStatus } from '../../types/database'
+import { Supplier, ProductVariant } from '../../types/database'
 import { useAuth } from '../../contexts/AuthContext'
-import { ArrowLeft, Save, ShoppingCart, Plus, Trash2, Search } from 'lucide-react'
+import { ArrowLeft, Save, ShoppingCart, Plus, Trash2, Search, AlertTriangle } from 'lucide-react'
 
 interface PurchaseItemForm {
+    id?: string // for existing items
     product_variant_id: string
     quantity: number
     unit_cost: number
@@ -15,19 +16,73 @@ interface PurchaseItemForm {
 
 export default function PurchaseFormPage() {
     const navigate = useNavigate()
+    const { id } = useParams()
     const queryClient = useQueryClient()
     const { user } = useAuth()
+    const isEditing = !!id
 
     const [supplierId, setSupplierId] = useState<string>('')
     const [invoiceNumber, setInvoiceNumber] = useState('')
     const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0])
-    const [status, setStatus] = useState<PurchaseStatus>('pendiente')
+    const [isCredit, setIsCredit] = useState(false)
+    const [initialPayment, setInitialPayment] = useState<number>(0)
+    const [newAbono, setNewAbono] = useState<number>(0)
     const [notes, setNotes] = useState('')
     const [items, setItems] = useState<PurchaseItemForm[]>([])
+    const [originalItems, setOriginalItems] = useState<PurchaseItemForm[]>([]) // To track stock changes
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedGroup, setSelectedGroup] = useState<any>(null)
     const [tempQtys, setTempQtys] = useState<{ [variantId: string]: number }>({})
     const [error, setError] = useState<string | null>(null)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+    // Fetch purchase for editing
+    const { isLoading: isLoadingPurchase } = useQuery({
+        queryKey: ['purchase', id],
+        queryFn: async () => {
+            if (!id || !isSupabaseConfigured()) return null
+            const { data, error } = await supabase
+                .from('purchases')
+                .select(`
+                    *,
+                    items:purchase_items(
+                        *,
+                        variant:product_variants(
+                            id, size, color, sku, cost, price, stock,
+                            product:products(id, name)
+                        )
+                    ),
+                    payments:purchase_payments(amount)
+                `)
+                .eq('id', id)
+                .single()
+
+            if (error) throw error
+
+            setSupplierId(data.supplier_id || '')
+            setInvoiceNumber(data.invoice_number || '')
+            setPurchaseDate(data.purchase_date)
+            setIsCredit(data.is_credit || false)
+
+            // SUM accurate history for the initialPayment
+            const totalPaidInHistory = (data.payments || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0)
+            setInitialPayment(totalPaidInHistory)
+            setNotes(data.notes || '')
+
+            const loadedItems = data.items.map((item: any) => ({
+                id: item.id,
+                product_variant_id: item.product_variant_id,
+                quantity: item.quantity,
+                unit_cost: item.unit_cost,
+                variant: item.variant
+            }))
+            setItems(loadedItems)
+            setOriginalItems(JSON.parse(JSON.stringify(loadedItems))) // Deep clone for comparison
+
+            return data
+        },
+        enabled: isEditing,
+    })
 
     // Fetch suppliers
     const { data: suppliers = [] } = useQuery({
@@ -135,32 +190,216 @@ export default function PurchaseFormPage() {
         return acc
     }, {}))
 
+    // Delete mutation
+    const deleteMutation = useMutation({
+        mutationFn: async () => {
+            if (!id || !isSupabaseConfigured()) return
+
+            // 1. Revert inventory (decrease stock)
+            for (const item of items) {
+                const { data: variant } = await supabase
+                    .from('product_variants')
+                    .select('stock')
+                    .eq('id', item.product_variant_id)
+                    .single()
+
+                if (variant) {
+                    await supabase
+                        .from('product_variants')
+                        .update({
+                            stock: Math.max(0, variant.stock - item.quantity),
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq('id', item.product_variant_id)
+                }
+            }
+
+            // 2. Delete payments (foreign key will handle it if cascade, but let's be safe)
+            await supabase.from('purchase_payments').delete().eq('purchase_id', id)
+
+            // 3. Delete purchase items
+            await supabase.from('purchase_items').delete().eq('purchase_id', id)
+
+            // 4. Delete purchase
+            const { error } = await supabase.from('purchases').delete().eq('id', id)
+            if (error) throw error
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['purchases'] })
+            queryClient.invalidateQueries({ queryKey: ['products'] })
+            navigate('/purchases')
+        },
+        onError: (err: Error) => {
+            setError(err.message)
+            setShowDeleteConfirm(false)
+        },
+    })
+
     // Save mutation
     const saveMutation = useMutation({
         mutationFn: async () => {
             if (!isSupabaseConfigured()) throw new Error('Supabase no configurado')
             if (items.length === 0) throw new Error('Agrega al menos un producto')
 
-            // Create purchase
-            const { data: purchase, error: purchaseError } = await supabase
-                .from('purchases')
-                .insert({
-                    supplier_id: supplierId || null,
-                    invoice_number: invoiceNumber || null,
-                    purchase_date: purchaseDate,
-                    total_amount: total,
-                    status,
-                    notes: notes || null,
-                    created_by: user?.id,
-                })
-                .select('id')
-                .single()
+            const finalInvoiceNumber = invoiceNumber || `COMP-${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12)}`
+            const finalPaidAmount = initialPayment + newAbono
+            const finalStatus = isCredit ? (finalPaidAmount >= total ? 'pagada' : 'pendiente') : 'pagada'
+            const paidAmount = isCredit ? finalPaidAmount : total
 
-            if (purchaseError) throw purchaseError
+            let purchaseId = id
+            let currentPaidInDb = 0
 
-            // Create purchase items
+            if (isEditing) {
+                // 1. Insert new payment if any
+                if (newAbono !== 0) {
+                    const { error: payError } = await supabase.from('purchase_payments').insert({
+                        supplier_id: supplierId || null,
+                        purchase_id: id,
+                        amount: newAbono,
+                        payment_date: new Date().toISOString().split('T')[0],
+                        payment_method: 'efectivo',
+                        notes: `Abono registrado en edición de factura`,
+                        created_by: user?.id,
+                    })
+                    if (payError) throw payError
+                }
+
+
+                // 2. RE-CALCULATE strictly from history sum (Source of Truth)
+                const { data: historyData } = await supabase
+                    .from('purchase_payments')
+                    .select('amount')
+                    .eq('purchase_id', id)
+
+                const verifiedPaidAmount = (historyData || []).reduce((acc: number, p: any) => acc + (p.amount || 0), 0)
+                const verifiedStatus = verifiedPaidAmount >= total ? 'pagada' : 'pendiente'
+
+                // 3. Update purchase header with verified sum
+                const { error: updateError } = await supabase
+                    .from('purchases')
+                    .update({
+                        supplier_id: supplierId || null,
+                        invoice_number: finalInvoiceNumber,
+                        purchase_date: purchaseDate,
+                        total_amount: total,
+                        paid_amount: verifiedPaidAmount,
+                        is_credit: isCredit,
+                        status: verifiedStatus,
+                        notes: notes || null,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', id)
+
+                if (updateError) throw updateError
+
+                // 4. Manage items and stock (RECORDING ONLY DIFFS)
+                // First, identify removed items
+                for (const oldItem of originalItems) {
+                    const stillExists = items.find(item => item.product_variant_id === oldItem.product_variant_id)
+                    if (!stillExists) {
+                        // REVERT STOCK for removed item
+                        const { data: v } = await supabase.from('product_variants').select('stock').eq('id', oldItem.product_variant_id).single()
+                        if (v) {
+                            await supabase.from('product_variants').update({ stock: Math.max(0, v.stock - oldItem.quantity) }).eq('id', oldItem.product_variant_id)
+                            // Record removal movement
+                            await supabase.from('inventory_movements').insert({
+                                product_variant_id: oldItem.product_variant_id,
+                                movement_type: 'ajuste',
+                                quantity: -oldItem.quantity,
+                                reference_id: id,
+                                reference_type: 'purchase',
+                                notes: 'Item eliminado en edición de compra',
+                                created_by: user?.id,
+                            })
+                        }
+                    }
+                }
+
+                // Process updated or new items
+                for (const item of items) {
+                    const oldItem = originalItems.find(oi => oi.product_variant_id === item.product_variant_id)
+                    const diffQty = item.quantity - (oldItem?.quantity || 0)
+
+                    if (diffQty !== 0 || !oldItem) {
+                        const { data: v } = await supabase.from('product_variants').select('stock').eq('id', item.product_variant_id).single()
+                        if (v) {
+                            await supabase.from('product_variants').update({
+                                stock: Math.max(0, v.stock + diffQty),
+                                updated_at: new Date().toISOString()
+                            }).eq('id', item.product_variant_id)
+
+                            // Record only the difference
+                            await supabase.from('inventory_movements').insert({
+                                product_variant_id: item.product_variant_id,
+                                movement_type: diffQty > 0 ? 'compra' : 'ajuste',
+                                quantity: diffQty,
+                                reference_id: id,
+                                reference_type: 'purchase',
+                                notes: oldItem ? `Ajuste cantidad en edición (Dif: ${diffQty > 0 ? '+' : ''}${diffQty})` : 'Nuevo item agregado en edición',
+                                created_by: user?.id,
+                            })
+                        }
+                    }
+                }
+
+                // Delete and re-insert items for the purchase structure (cascade delete not used here to be safer with records)
+                await supabase.from('purchase_items').delete().eq('purchase_id', id)
+
+            } else {
+                // Create purchase
+                const { data: purchase, error: purchaseError } = await supabase
+                    .from('purchases')
+                    .insert({
+                        supplier_id: supplierId || null,
+                        invoice_number: finalInvoiceNumber,
+                        purchase_date: purchaseDate,
+                        total_amount: total,
+                        paid_amount: paidAmount,
+                        is_credit: isCredit,
+                        status: finalStatus,
+                        notes: notes || null,
+                        created_by: user?.id,
+                    })
+                    .select('id')
+                    .single()
+
+                if (purchaseError) throw purchaseError
+                purchaseId = purchase.id
+
+                // Record initial payment ONLY for new purchases
+                if (paidAmount > 0) {
+                    await supabase.from('purchase_payments').insert({
+                        purchase_id: purchaseId,
+                        amount: paidAmount,
+                        payment_date: purchaseDate,
+                        payment_method: 'efectivo',
+                        notes: isCredit ? 'Abono inicial' : 'Pago total al contado',
+                        created_by: user?.id
+                    })
+                }
+
+                // Stock for NEW items
+                for (const item of items) {
+                    const { data: v } = await supabase.from('product_variants').select('stock').eq('id', item.product_variant_id).single()
+                    if (v) {
+                        await supabase.from('product_variants').update({ stock: v.stock + item.quantity }).eq('id', item.product_variant_id)
+
+                        await supabase.from('inventory_movements').insert({
+                            product_variant_id: item.product_variant_id,
+                            movement_type: 'compra',
+                            quantity: item.quantity,
+                            reference_id: purchaseId,
+                            reference_type: 'purchase',
+                            notes: 'Compra inicial',
+                            created_by: user?.id,
+                        })
+                    }
+                }
+            }
+
+            // Create new/updated items records (the structure link)
             const purchaseItems = items.map((item) => ({
-                purchase_id: purchase.id,
+                purchase_id: purchaseId,
                 product_variant_id: item.product_variant_id,
                 quantity: item.quantity,
                 unit_cost: item.unit_cost,
@@ -172,41 +411,12 @@ export default function PurchaseFormPage() {
                 .insert(purchaseItems)
 
             if (itemsError) throw itemsError
-
-            // Update inventory (increase stock)
-            for (const item of items) {
-                // Get current stock
-                const { data: variant } = await supabase
-                    .from('product_variants')
-                    .select('stock')
-                    .eq('id', item.product_variant_id)
-                    .single()
-
-                if (variant) {
-                    // Update stock
-                    await supabase
-                        .from('product_variants')
-                        .update({
-                            stock: variant.stock + item.quantity,
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq('id', item.product_variant_id)
-
-                    // Record movement
-                    await supabase.from('inventory_movements').insert({
-                        product_variant_id: item.product_variant_id,
-                        movement_type: 'compra',
-                        quantity: item.quantity,
-                        reference_id: purchase.id,
-                        reference_type: 'purchase',
-                        created_by: user?.id,
-                    })
-                }
-            }
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['purchases'] })
+            queryClient.invalidateQueries({ queryKey: ['suppliers'] })
             queryClient.invalidateQueries({ queryKey: ['products'] })
+            queryClient.invalidateQueries({ queryKey: ['pending-purchases'] })
             navigate('/purchases')
         },
         onError: (err: Error) => {
@@ -223,18 +433,42 @@ export default function PurchaseFormPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-6">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <button
-                    onClick={() => navigate('/purchases')}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                    <ArrowLeft size={24} />
-                </button>
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Nueva Compra</h1>
-                    <p className="text-gray-500">Registra una factura de compra y actualiza el inventario</p>
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => navigate('/purchases')}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                        <ArrowLeft size={24} />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-800">
+                            {isEditing ? 'Editar Compra' : 'Nueva Compra'}
+                        </h1>
+                        <p className="text-gray-500">
+                            {isEditing ? 'Modifica los datos de la factura' : 'Registra una factura de compra y actualiza el inventario'}
+                        </p>
+                    </div>
                 </div>
+
+                {isEditing && (
+                    <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="btn-secondary text-red-600 hover:bg-red-50 border-red-100 flex items-center gap-2"
+                    >
+                        <Trash2 size={18} />
+                        Eliminar Compra
+                    </button>
+                )}
             </div>
+
+            {isLoadingPurchase && (
+                <div className="card text-center py-12">
+                    <div className="spinner mx-auto"></div>
+                    <p className="text-gray-500 mt-4">Cargando datos de la compra...</p>
+                </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Purchase info card */}
@@ -285,15 +519,48 @@ export default function PurchaseFormPage() {
                             />
                         </div>
                         <div className="form-group">
-                            <label className="form-label">Estado de Pago</label>
-                            <select
-                                value={status}
-                                onChange={(e) => setStatus(e.target.value as PurchaseStatus)}
-                                className="form-select"
-                            >
-                                <option value="pendiente">Pendiente</option>
-                                <option value="pagada">Pagada</option>
-                            </select>
+                            <label className="form-label">Tipo de Pago</label>
+                            <div className="flex gap-4 mt-2">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        checked={!isCredit}
+                                        onChange={() => setIsCredit(false)}
+                                        className="w-4 h-4 text-primary-600"
+                                    />
+                                    <span className="text-sm font-medium">Contado</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        checked={isCredit}
+                                        onChange={() => setIsCredit(true)}
+                                        className="w-4 h-4 text-primary-600"
+                                    />
+                                    <span className="text-sm font-medium">Crédito</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 pt-4 border-t border-amber-100">
+                            <div className="max-w-md mx-auto">
+                                <label className="form-label text-primary-800 font-black uppercase text-[10px] tracking-widest text-center">Abono Realizado Hoy $</label>
+                                <input
+                                    type="number"
+                                    value={newAbono}
+                                    onChange={(e) => {
+                                        const val = Math.abs(Number(e.target.value))
+                                        setNewAbono(val)
+                                    }}
+                                    className="form-input border-primary-300 bg-primary-50/30 ring-2 ring-primary-50 text-center text-2xl font-black text-primary-700 h-14"
+                                    placeholder="0"
+                                    min="0"
+                                    step="any"
+                                />
+                                <p className="text-[10px] text-primary-600 mt-2 text-center font-bold italic leading-tight">
+                                    Este monto se registrará como un abono a tu cuenta con el proveedor.
+                                </p>
+                            </div>
                         </div>
                     </div>
 
@@ -499,7 +766,7 @@ export default function PurchaseFormPage() {
                     </button>
                     <button
                         type="submit"
-                        disabled={saveMutation.isPending || items.length === 0}
+                        disabled={saveMutation.isPending || items.length === 0 || isLoadingPurchase}
                         className="btn-primary flex items-center gap-2"
                     >
                         {saveMutation.isPending ? (
@@ -510,12 +777,55 @@ export default function PurchaseFormPage() {
                         ) : (
                             <>
                                 <Save size={20} />
-                                Registrar Compra
+                                {isEditing ? 'Guardar Cambios' : 'Registrar Compra'}
                             </>
                         )}
                     </button>
                 </div>
             </form>
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl animate-scale-in">
+                        <div className="flex items-center gap-3 text-red-600 mb-4">
+                            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                                <AlertTriangle size={24} />
+                            </div>
+                            <h3 className="text-xl font-bold">¿Eliminar Compra?</h3>
+                        </div>
+                        <p className="text-gray-600 mb-6">
+                            Esta acción revertirá el stock de los productos comprados y eliminará definitivamente el registro de la compra y sus pagos asociados. Esta acción no se puede deshacer.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowDeleteConfirm(false)}
+                                className="btn-secondary flex-1"
+                                disabled={deleteMutation.isPending}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => deleteMutation.mutate()}
+                                className="btn-primary bg-red-600 hover:bg-red-700 flex-1 flex items-center justify-center gap-2"
+                                disabled={deleteMutation.isPending}
+                            >
+                                {deleteMutation.isPending ? (
+                                    <>
+                                        <div className="spinner w-4 h-4 border-white/30 border-t-white"></div>
+                                        Eliminando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2 size={18} />
+                                        Confirmar Eliminación
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

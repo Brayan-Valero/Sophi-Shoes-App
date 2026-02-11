@@ -65,7 +65,7 @@ export default function PurchasesPage() {
             </div>
 
             {/* Search */}
-            <div className="card">
+            <div className="card shadow-sm border-gray-100">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                     <input
@@ -73,7 +73,7 @@ export default function PurchasesPage() {
                         placeholder="Buscar por factura o proveedor..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="form-input pl-10"
+                        className="form-input pl-10 border-gray-200"
                     />
                 </div>
             </div>
@@ -103,94 +103,94 @@ export default function PurchasesPage() {
             ) : (
                 <div className="space-y-4">
                     {filteredPurchases.map((purchase) => (
-                        <div key={purchase.id} className="card">
+                        <div key={purchase.id} className="card hover:border-primary-200 transition-colors">
                             {/* Purchase header */}
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="flex items-start gap-4">
-                                    <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                                        <ShoppingCart className="text-purple-600" size={24} />
+                                    <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center flex-shrink-0 text-purple-600">
+                                        <ShoppingCart size={24} />
                                     </div>
                                     <div>
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <h3 className="font-semibold text-gray-800">
-                                                {purchase.invoice_number || 'Sin número'}
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-bold text-gray-900 leading-tight">
+                                                Factura: {purchase.invoice_number || 'Sin número'}
                                             </h3>
-                                            <span
-                                                className={`badge ${purchase.status === 'pagada'
-                                                        ? 'badge-success'
-                                                        : 'badge-warning'
-                                                    }`}
-                                            >
-                                                {purchase.status === 'pagada' ? 'Pagada' : 'Pendiente'}
-                                            </span>
                                         </div>
-                                        <p className="text-sm text-gray-500 mt-1">
-                                            {purchase.supplier?.name || 'Sin proveedor'} •{' '}
-                                            {formatDate(purchase.purchase_date)}
+                                        <p className="text-sm text-gray-500 mt-1 font-medium">
+                                            {purchase.supplier?.name || 'Sin proveedor'} • {formatDate(purchase.purchase_date)}
                                         </p>
-                                        <p className="text-lg font-bold text-gray-800 mt-1">
+                                        <p className="text-xl font-black text-gray-900 mt-1">
                                             ${purchase.total_amount.toLocaleString()}
                                         </p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() =>
-                                        setExpandedPurchase(
-                                            expandedPurchase === purchase.id ? null : purchase.id
-                                        )
-                                    }
-                                    className="btn-secondary flex items-center gap-2"
-                                >
-                                    {expandedPurchase === purchase.id ? (
-                                        <>
-                                            <ChevronUp size={16} />
-                                            Ocultar Detalle
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ChevronDown size={16} />
-                                            Ver Detalle
-                                        </>
-                                    )}
-                                </button>
+                                <div className="flex flex-wrap gap-2">
+                                    <Link
+                                        to={`/purchases/${purchase.id}`}
+                                        className="btn-secondary h-10 px-4 flex items-center gap-2 text-xs font-bold"
+                                    >
+                                        <Plus size={16} className="rotate-45" />
+                                        Editar
+                                    </Link>
+                                    <button
+                                        onClick={() =>
+                                            setExpandedPurchase(
+                                                expandedPurchase === purchase.id ? null : purchase.id
+                                            )
+                                        }
+                                        className="btn-secondary h-10 px-4 flex items-center gap-2 text-xs font-bold"
+                                    >
+                                        {expandedPurchase === purchase.id ? (
+                                            <>
+                                                <ChevronUp size={16} />
+                                                Ocultar Detalle
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ChevronDown size={16} />
+                                                Ver Detalle
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
 
-                            {/* Purchase items */}
+                            {/* Purchase items (Details) */}
                             {expandedPurchase === purchase.id && purchase.items && (
-                                <div className="mt-4 pt-4 border-t">
-                                    <h4 className="text-sm font-medium text-gray-700 mb-3">Items comprados</h4>
-                                    <div className="table-container">
-                                        <table>
-                                            <thead>
+                                <div className="mt-6 pt-6 border-t border-gray-100">
+                                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Productos en esta factura</h4>
+                                    <div className="overflow-x-auto rounded-xl border border-gray-100">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-gray-50 text-[10px] font-black uppercase text-gray-500 tracking-widest">
                                                 <tr>
-                                                    <th>Producto</th>
-                                                    <th>Variante</th>
-                                                    <th className="text-right">Cantidad</th>
-                                                    <th className="text-right">Costo Unit.</th>
-                                                    <th className="text-right">Subtotal</th>
+                                                    <th className="px-4 py-3">Producto</th>
+                                                    <th className="px-4 py-3">Variante</th>
+                                                    <th className="px-4 py-3 text-right">Cantidad</th>
+                                                    <th className="px-4 py-3 text-right">Costo Unit.</th>
+                                                    <th className="px-4 py-3 text-right">Subtotal</th>
                                                 </tr>
                                             </thead>
-                                            <tbody>
+                                            <tbody className="divide-y divide-gray-100">
                                                 {purchase.items.map((item: any) => (
-                                                    <tr key={item.id}>
-                                                        <td className="font-medium">
+                                                    <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                                                        <td className="px-4 py-3 font-semibold text-gray-800">
                                                             {item.product_variant?.product?.name || 'Producto'}
                                                         </td>
-                                                        <td>
-                                                            {item.product_variant?.size} - {item.product_variant?.color}
+                                                        <td className="px-4 py-3 text-gray-500 font-medium whitespace-nowrap">
+                                                            Talla {item.product_variant?.size} • {item.product_variant?.color}
                                                         </td>
-                                                        <td className="text-right">{item.quantity}</td>
-                                                        <td className="text-right">${item.unit_cost.toLocaleString()}</td>
-                                                        <td className="text-right font-medium">
+                                                        <td className="px-4 py-3 text-right font-bold text-gray-700">{item.quantity}</td>
+                                                        <td className="px-4 py-3 text-right text-gray-500">${item.unit_cost.toLocaleString()}</td>
+                                                        <td className="px-4 py-3 text-right font-black text-gray-900">
                                                             ${item.subtotal.toLocaleString()}
                                                         </td>
                                                     </tr>
                                                 ))}
                                             </tbody>
-                                            <tfoot>
-                                                <tr className="border-t-2">
-                                                    <td colSpan={4} className="text-right font-semibold">Total:</td>
-                                                    <td className="text-right font-bold text-lg">
+                                            <tfoot className="bg-gray-50 font-black">
+                                                <tr>
+                                                    <td colSpan={4} className="px-4 py-4 text-right text-gray-500 uppercase text-[10px]">Total Factura:</td>
+                                                    <td className="px-4 py-4 text-right text-lg text-primary-700">
                                                         ${purchase.total_amount.toLocaleString()}
                                                     </td>
                                                 </tr>
@@ -198,9 +198,10 @@ export default function PurchasesPage() {
                                         </table>
                                     </div>
                                     {purchase.notes && (
-                                        <p className="mt-3 text-sm text-gray-500">
-                                            <strong>Notas:</strong> {purchase.notes}
-                                        </p>
+                                        <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Notas</p>
+                                            <p className="text-sm text-gray-600 italic leading-relaxed">{purchase.notes}</p>
+                                        </div>
                                     )}
                                 </div>
                             )}

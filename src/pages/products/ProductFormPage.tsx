@@ -5,6 +5,7 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 import { Product, ProductInsert, ProductVariantInsert, Supplier } from '../../types/database'
 import { ArrowLeft, Save, Package, Plus, Trash2 } from 'lucide-react'
 import ImageUpload from '../../components/ui/ImageUpload'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface VariantForm {
     id?: string
@@ -20,6 +21,7 @@ export default function ProductFormPage() {
     const { id } = useParams()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+    const { user } = useAuth()
     const isEditing = Boolean(id)
 
     const [formData, setFormData] = useState<ProductInsert>({
@@ -73,9 +75,6 @@ export default function ProductFormPage() {
             return data ?? []
         },
     })
-
-
-
 
     // Fetch product for editing
     const { data: product, isLoading: loadingProduct } = useQuery({
@@ -199,12 +198,40 @@ export default function ProductFormPage() {
                     }
 
                     if (variant.id) {
+                        // Check if stock changed to record adjustment
+                        const originalVariant = product?.variants?.find(v => v.id === variant.id)
+                        const stockDiff = variant.stock - (originalVariant?.stock || 0)
+
                         await supabase
                             .from('product_variants')
                             .update({ ...variantData, updated_at: new Date().toISOString() })
                             .eq('id', variant.id)
+
+                        if (stockDiff !== 0) {
+                            await supabase.from('inventory_movements').insert({
+                                product_variant_id: variant.id,
+                                movement_type: 'ajuste',
+                                quantity: stockDiff,
+                                notes: `Ajuste manual de inventario (${stockDiff > 0 ? '+' : ''}${stockDiff})`,
+                                created_by: user?.id
+                            })
+                        }
                     } else {
-                        await supabase.from('product_variants').insert(variantData)
+                        const { data: newV, error: vErr } = await supabase
+                            .from('product_variants')
+                            .insert(variantData)
+                            .select('id')
+                            .single()
+
+                        if (!vErr && newV && variant.stock !== 0) {
+                            await supabase.from('inventory_movements').insert({
+                                product_variant_id: newV.id,
+                                movement_type: 'ajuste',
+                                quantity: variant.stock,
+                                notes: 'Stock inicial (ajuste manual)',
+                                created_by: user?.id
+                            })
+                        }
                     }
                 }
             }
@@ -215,8 +242,33 @@ export default function ProductFormPage() {
         },
         onError: (err: Error) => {
             setError(err.message)
-        },
+        }
     })
+
+    // Delete product mutation
+    const deleteMutation = useMutation({
+        mutationFn: async () => {
+            if (!id || !isSupabaseConfigured()) return
+            const { error } = await supabase
+                .from('products')
+                .delete()
+                .eq('id', id)
+            if (error) throw error
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] })
+            navigate('/products')
+        },
+        onError: (err: Error) => {
+            setError('No se puede eliminar el producto: ' + err.message)
+        }
+    })
+
+    const handleDelete = () => {
+        if (window.confirm('¿Está seguro de eliminar este producto y todas sus variantes? Esta acción no se puede deshacer.')) {
+            deleteMutation.mutate()
+        }
+    }
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -615,12 +667,10 @@ export default function ProductFormPage() {
                                                     onChange={(e) => updateVariant(index, 'stock', Number(e.target.value))}
                                                     className="form-input text-sm"
                                                     min="0"
-                                                    disabled={isEditing}
-                                                    title={isEditing ? 'El stock se modifica mediante compras y ventas' : ''}
                                                 />
                                                 {isEditing && (
-                                                    <p className="text-xs text-gray-400 mt-1">
-                                                        Stock se modifica con compras/ventas
+                                                    <p className="text-[10px] text-amber-600 mt-1">
+                                                        Ajuste manual registra auditoría
                                                     </p>
                                                 )}
                                             </div>
@@ -637,7 +687,7 @@ export default function ProductFormPage() {
                     <button type="button" onClick={() => navigate('/products')} className="btn-secondary">
                         Cancelar
                     </button>
-                    <button type="submit" disabled={saveMutation.isPending} className="btn-primary flex items-center gap-2">
+                    <button type="submit" disabled={saveMutation.isPending || deleteMutation.isPending} className="btn-primary flex items-center gap-2">
                         {saveMutation.isPending ? (
                             <>
                                 <div className="spinner w-4 h-4 border-white/30 border-t-white"></div>
@@ -651,6 +701,20 @@ export default function ProductFormPage() {
                         )}
                     </button>
                 </div>
+
+                {isEditing && (
+                    <div className="pt-6 border-t flex justify-center">
+                        <button
+                            type="button"
+                            onClick={handleDelete}
+                            disabled={deleteMutation.isPending}
+                            className="text-red-500 hover:text-red-700 text-sm flex items-center gap-1 py-2 px-4 rounded-lg hover:bg-red-50 transition-colors"
+                        >
+                            <Trash2 size={16} />
+                            Eliminar Producto Permanentemente
+                        </button>
+                    </div>
+                )}
             </form>
         </div>
     )

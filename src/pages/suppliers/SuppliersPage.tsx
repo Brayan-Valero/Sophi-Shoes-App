@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 import { Supplier } from '../../types/database'
-import { Plus, Edit, Search, Building2, Phone, Mail } from 'lucide-react'
+import { Plus, Edit, Search, Building2, Phone, Mail, DollarSign } from 'lucide-react'
+import SupplierDebtsModal from '../../components/suppliers/SupplierDebtsModal'
 
 export default function SuppliersPage() {
     const [searchTerm, setSearchTerm] = useState('')
+    const [selectedSupplierForDebts, setSelectedSupplierForDebts] = useState<Supplier | null>(null)
     const queryClient = useQueryClient()
 
     // Fetch suppliers
@@ -14,14 +16,26 @@ export default function SuppliersPage() {
         queryKey: ['suppliers'],
         queryFn: async () => {
             if (!isSupabaseConfigured()) return []
-
+            // Fetch suppliers with their purchases and payments to calculate global debt
             const { data, error } = await supabase
                 .from('suppliers')
-                .select('*')
+                .select(`
+                    *,
+                    purchases(total_amount),
+                    payments:purchase_payments(amount)
+                `)
                 .order('name')
 
             if (error) throw error
-            return data as Supplier[]
+
+            return (data || []).map((s: any) => {
+                const totalPurchased = s.purchases?.reduce((sum: number, p: any) => sum + (p.total_amount || 0), 0) || 0
+                const totalPaid = s.payments?.reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0
+                return {
+                    ...s,
+                    total_debt: Math.max(0, totalPurchased - totalPaid)
+                }
+            }) as (Supplier & { total_debt: number })[]
         },
     })
 
@@ -138,7 +152,20 @@ export default function SuppliersPage() {
                                         </div>
                                     </div>
                                 </div>
+                                <div className="flex flex-col items-end gap-1">
+                                    <span className="text-[10px] text-gray-400 font-bold uppercase">Deuda Total</span>
+                                    <span className={`text-lg font-black ${supplier.total_debt > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                        ${supplier.total_debt.toLocaleString()}
+                                    </span>
+                                </div>
                                 <div className="flex items-center gap-2 sm:flex-shrink-0">
+                                    <button
+                                        onClick={() => setSelectedSupplierForDebts(supplier)}
+                                        className={`btn py-2 px-4 flex items-center gap-2 ${supplier.total_debt > 0 ? 'btn-primary bg-emerald-600 hover:bg-emerald-700' : 'btn-secondary text-gray-600'}`}
+                                    >
+                                        <DollarSign size={16} />
+                                        {supplier.total_debt > 0 ? 'Gestionar Deuda' : 'Ver Historial'}
+                                    </button>
                                     <button
                                         onClick={() =>
                                             toggleActiveMutation.mutate({
@@ -153,7 +180,7 @@ export default function SuppliersPage() {
                                     </button>
                                     <Link
                                         to={`/suppliers/${supplier.id}`}
-                                        className="btn-primary flex items-center gap-2"
+                                        className="btn-secondary flex items-center gap-2"
                                     >
                                         <Edit size={16} />
                                         Editar
@@ -163,6 +190,16 @@ export default function SuppliersPage() {
                         </div>
                     ))}
                 </div>
+            )}
+
+            {selectedSupplierForDebts && (
+                <SupplierDebtsModal
+                    supplier={selectedSupplierForDebts}
+                    onClose={() => {
+                        setSelectedSupplierForDebts(null)
+                        queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+                    }}
+                />
             )}
         </div>
     )

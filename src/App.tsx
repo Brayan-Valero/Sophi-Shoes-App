@@ -90,6 +90,7 @@ function App() {
                 {/* Purchases - Admin only */}
                 <Route path="purchases" element={<ProtectedRoute requireAdmin><PurchasesPage /></ProtectedRoute>} />
                 <Route path="purchases/new" element={<ProtectedRoute requireAdmin><PurchaseFormPage /></ProtectedRoute>} />
+                <Route path="purchases/:id" element={<ProtectedRoute requireAdmin><PurchaseFormPage /></ProtectedRoute>} />
 
                 {/* Sales - All authenticated users */}
                 <Route path="sales" element={<SalesPage />} />

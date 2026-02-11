@@ -97,6 +97,8 @@ export interface Purchase {
     invoice_number: string | null
     purchase_date: string
     total_amount: number
+    paid_amount: number
+    is_credit: boolean
     status: PurchaseStatus
     notes: string | null
     created_by: string | null
@@ -107,8 +109,24 @@ export interface Purchase {
     items?: PurchaseItem[]
 }
 
-export interface PurchaseInsert extends Omit<Purchase, 'id' | 'created_at' | 'updated_at' | 'supplier' | 'items'> { }
+export interface PurchaseInsert extends Omit<Purchase, 'id' | 'created_at' | 'updated_at' | 'supplier' | 'items' | 'payments'> { }
 export interface PurchaseUpdate extends Partial<PurchaseInsert> { }
+
+// Purchase Payment (Abonos)
+export interface PurchasePayment {
+    id: string
+    purchase_id?: string
+    supplier_id?: string
+    amount: number
+    payment_date: string
+    payment_method: 'efectivo' | 'tarjeta' | 'transferencia' | 'otro'
+    notes: string | null
+    created_by: string | null
+    created_at: string
+    updated_at: string
+}
+
+export interface PurchasePaymentInsert extends Omit<PurchasePayment, 'id' | 'created_at' | 'updated_at'> { }
 
 // Purchase Item (Detalle de compra)
 export interface PurchaseItem {
