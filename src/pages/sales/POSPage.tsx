@@ -173,7 +173,9 @@ export default function POSPage() {
                     customer_id: selectedCustomer?.id,
                     // Shipping fields
                     shipping_type: shippingType,
-                    shipping_status: shippingType === 'local' ? 'entregado' : 'pendiente',
+                    shipping_status: shippingType === 'local'
+                        ? 'recibido'
+                        : (trackingNumber ? 'despachado' : 'orden generada'),
                     tracking_number: trackingNumber || null,
                     shipping_cost: shippingCost,
                     // Electronic Fields
@@ -245,6 +247,18 @@ export default function POSPage() {
 
     const handleSubmit = () => {
         setError(null)
+
+        // Validation for Shipments
+        if (isShippingMode) {
+            if (!selectedCustomer) {
+                setError('Debe seleccionar un cliente para el envío')
+                return
+            }
+            if (!selectedCustomer.phone || !selectedCustomer.address || !selectedCustomer.identification) {
+                setError('El cliente seleccionado debe tener Nombre, Teléfono, Dirección e Identificación para el envío.')
+                return
+            }
+        }
 
         // Validation for Electronic Invoicing
         if (isElectronic) {
@@ -461,6 +475,7 @@ export default function POSPage() {
                     <CustomerSelect
                         selectedCustomer={selectedCustomer}
                         onSelect={setSelectedCustomer}
+                        isShipping={isShippingMode}
                     />
                 </div>
 

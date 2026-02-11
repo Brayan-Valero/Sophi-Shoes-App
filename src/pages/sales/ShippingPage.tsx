@@ -66,9 +66,9 @@ export default function ShippingPage() {
 
     const getStatusBadge = (status: ShippingStatus) => {
         switch (status) {
-            case 'pendiente': return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium flex items-center gap-1"><Clock size={12} /> Pendiente</span>
-            case 'enviado': return <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium flex items-center gap-1"><Truck size={12} /> Enviado</span>
-            case 'entregado': return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium flex items-center gap-1"><CheckCircle size={12} /> Entregado</span>
+            case 'orden generada': return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium flex items-center gap-1"><Clock size={12} /> Orden Generada</span>
+            case 'despachado': return <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium flex items-center gap-1"><Truck size={12} /> Despachado</span>
+            case 'recibido': return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium flex items-center gap-1"><CheckCircle size={12} /> Recibido</span>
             case 'devuelto': return <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium flex items-center gap-1"><XCircle size={12} /> Devuelto</span>
             default: return status
         }
@@ -205,13 +205,13 @@ export default function ShippingPage() {
                                                     <div className="bg-white p-4 rounded border">
                                                         <h4 className="font-semibold text-sm text-gray-700 mb-4">Actualizar Estado</h4>
                                                         <div className="grid grid-cols-2 gap-2 mb-4">
-                                                            {(['pendiente', 'enviado', 'entregado', 'devuelto'] as ShippingStatus[]).map(status => (
+                                                            {(['orden generada', 'despachado', 'recibido', 'devuelto'] as ShippingStatus[]).map(status => (
                                                                 <button
                                                                     key={status}
                                                                     onClick={() => updateStatusMutation.mutate({ id: sale.id, status })}
                                                                     disabled={updateStatusMutation.isPending}
                                                                     className={`px-3 py-2 rounded text-xs font-medium capitalize border transition-all ${sale.shipping_status === status
-                                                                        ? 'bg-primary-50 border-primary-500 text-primary-700'
+                                                                        ? 'bg-blue-50 border-blue-500 text-blue-700'
                                                                         : 'bg-white border-gray-200 hover:border-gray-300'
                                                                         }`}
                                                                 >
@@ -228,8 +228,14 @@ export default function ShippingPage() {
                                                                     placeholder="Actualizar guía..."
                                                                     defaultValue={sale.tracking_number}
                                                                     onBlur={(e) => {
-                                                                        if (e.target.value !== sale.tracking_number) {
-                                                                            updateStatusMutation.mutate({ id: sale.id, status: sale.shipping_status, tracking: e.target.value })
+                                                                        const newVal = e.target.value;
+                                                                        if (newVal !== sale.tracking_number) {
+                                                                            // Auto-transition to 'despachado' if tracking is added and it was 'orden generada'
+                                                                            let nextStatus = sale.shipping_status;
+                                                                            if (newVal && sale.shipping_status === 'orden generada') {
+                                                                                nextStatus = 'despachado';
+                                                                            }
+                                                                            updateStatusMutation.mutate({ id: sale.id, status: nextStatus, tracking: newVal })
                                                                         }
                                                                     }}
                                                                 />

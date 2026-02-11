@@ -11,7 +11,7 @@ export type PurchaseStatus = 'pendiente' | 'pagada'
 export type MovementType = 'compra' | 'venta' | 'ajuste' | 'devolucion'
 
 export type ShippingType = 'local' | 'dropi' | 'contraentrega'
-export type ShippingStatus = 'pendiente' | 'enviado' | 'entregado' | 'devuelto'
+export type ShippingStatus = 'orden generada' | 'despachado' | 'recibido' | 'devuelto'
 export type ReturnStatus = 'pendiente' | 'completado' | 'rechazado'
 
 // DIAN Colombia specific types

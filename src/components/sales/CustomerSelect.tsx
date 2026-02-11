@@ -8,9 +8,10 @@ import { Customer } from '../../types/database'
 interface CustomerSelectProps {
     onSelect: (customer: Customer | null) => void
     selectedCustomer: Customer | null
+    isShipping?: boolean
 }
 
-export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerSelectProps) {
+export default function CustomerSelect({ onSelect, selectedCustomer, isShipping = false }: CustomerSelectProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const [isCreating, setIsCreating] = useState(false)
@@ -19,10 +20,20 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
         phone: '',
         email: '',
         identification: '',
-        document_type: '13'
+        address: '',
+        document_type: '13',
+        client_type: isShipping ? 'shipping' : 'standard'
     })
     const wrapperRef = useRef<HTMLDivElement>(null)
     const queryClient = useQueryClient()
+
+    // Update client_type when isShipping changes
+    useEffect(() => {
+        setNewCustomer(prev => ({
+            ...prev,
+            client_type: isShipping ? 'shipping' : 'standard'
+        }))
+    }, [isShipping])
 
     // Search Customers
     const { data: customers = [] } = useQuery({
@@ -43,10 +54,10 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
 
     // Create Customer
     const createCustomerMutation = useMutation({
-        mutationFn: async (newCustomer: { full_name: string, phone: string, email: string }) => {
+        mutationFn: async (customerData: any) => {
             const { data, error } = await supabase
                 .from('customers')
-                .insert([newCustomer])
+                .insert([customerData])
                 .select()
                 .single()
 
@@ -62,7 +73,9 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
                 phone: '',
                 email: '',
                 identification: '',
-                document_type: '13'
+                address: '',
+                document_type: '13',
+                client_type: isShipping ? 'shipping' : 'standard'
             })
             setSearchTerm('')
             queryClient.invalidateQueries({ queryKey: ['customers'] })
@@ -85,14 +98,20 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
         e.preventDefault()
         if (!newCustomer.full_name) return
 
-        // Final check for document type and ID if not provided
+        // If shipping, all fields are mandatory
+        if (isShipping && (!newCustomer.phone || !newCustomer.address || !newCustomer.identification)) {
+            alert('Para envíos, todos los campos (Nombre, Teléfono, Dirección e Identificación) son obligatorios.')
+            return
+        }
+
+        // Final check for document type and ID if not provided (for non-shipping)
         const finalCustomer = {
             ...newCustomer,
             identification: newCustomer.identification || `TEMP-${Date.now()}`,
             email: newCustomer.email || `temporal@sophi.com`
         }
 
-        createCustomerMutation.mutate(finalCustomer as any)
+        createCustomerMutation.mutate(finalCustomer)
     }
 
     if (selectedCustomer) {
@@ -105,6 +124,7 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
                     <div>
                         <p className="font-bold text-gray-800 text-sm">{selectedCustomer.full_name}</p>
                         <p className="text-xs text-gray-500">{selectedCustomer.phone || selectedCustomer.email || 'Sin contacto'}</p>
+                        {isShipping && <p className="text-[10px] text-blue-600 truncate max-w-[200px]">{selectedCustomer.address}</p>}
                     </div>
                 </div>
                 <button
@@ -199,13 +219,13 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
                     ) : (
                         <form onSubmit={handleCreate} className="p-4 space-y-3">
                             <div className="flex justify-between items-center mb-2">
-                                <h4 className="font-bold text-gray-800 text-sm">Nuevo Cliente</h4>
+                                <h4 className="font-bold text-gray-800 text-sm">Nuevo Cliente {isShipping ? '(Envío)' : ''}</h4>
                                 <button type="button" onClick={() => setIsCreating(false)} className="text-gray-400"><X size={16} /></button>
                             </div>
 
                             <input
                                 required
-                                placeholder="Nombre Completo / Razón Social"
+                                placeholder="Nombre Completo / Razón Social *"
                                 className="form-input text-sm"
                                 value={newCustomer.full_name}
                                 onChange={e => setNewCustomer({ ...newCustomer, full_name: e.target.value })}
@@ -222,7 +242,8 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
                                     <option value="41">Pasaporte</option>
                                 </select>
                                 <input
-                                    placeholder="Identificación (Opcional)"
+                                    required={isShipping}
+                                    placeholder={isShipping ? "Identificación *" : "Identificación (Opcional)"}
                                     className="form-input text-sm"
                                     value={newCustomer.identification}
                                     onChange={e => setNewCustomer({ ...newCustomer, identification: e.target.value })}
@@ -230,15 +251,24 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
                             </div>
 
                             <input
-                                placeholder="Teléfono"
+                                required={isShipping}
+                                placeholder={isShipping ? "Teléfono *" : "Teléfono"}
                                 className="form-input text-sm"
                                 value={newCustomer.phone}
                                 onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })}
                             />
 
                             <input
+                                required={isShipping}
+                                placeholder={isShipping ? "Dirección de Entrega *" : "Dirección (Opcional)"}
+                                className="form-input text-sm"
+                                value={newCustomer.address}
+                                onChange={e => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                            />
+
+                            <input
                                 type="email"
-                                placeholder="Email (Opcional - solo para factura)"
+                                placeholder="Email (Opcional)"
                                 className="form-input text-sm"
                                 value={newCustomer.email}
                                 onChange={e => setNewCustomer({ ...newCustomer, email: e.target.value })}
@@ -247,12 +277,14 @@ export default function CustomerSelect({ onSelect, selectedCustomer }: CustomerS
                             <button
                                 type="submit"
                                 disabled={createCustomerMutation.isPending || !newCustomer.full_name}
-                                className="w-full btn-primary py-2 text-sm flex justify-center items-center gap-2"
+                                className={`w-full py-2 text-sm flex justify-center items-center gap-2 rounded-lg font-medium transition-colors ${isShipping ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'btn-primary'}`}
                             >
                                 {createCustomerMutation.isPending ? 'Guardando...' : <><Check size={16} /> Guardar y Seleccionar</>}
                             </button>
                             <p className="text-[10px] text-gray-400 text-center">
-                                * Para ventas locales solo se requiere el nombre. Identificación y Email se generarán automáticamente si se dejan vacíos.
+                                {isShipping
+                                    ? '* Para envíos todos los campos con asterisco son obligatorios.'
+                                    : '* Para ventas locales solo se requiere el nombre.'}
                             </p>
                         </form>
                     )}

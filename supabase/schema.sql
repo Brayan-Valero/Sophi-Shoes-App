@@ -375,7 +375,7 @@ ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES pu
 -- customer_id was added in previous step, ensuring it's there.
 -- Now adding shipping fields:
 ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS shipping_type TEXT CHECK (shipping_type IN ('local', 'dropi', 'contraentrega')) DEFAULT 'local';
-ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS shipping_status TEXT CHECK (shipping_status IN ('pendiente', 'enviado', 'entregado', 'devuelto')) DEFAULT 'pendiente';
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS shipping_status TEXT CHECK (shipping_status IN ('orden generada', 'despachado', 'recibido', 'devuelto')) DEFAULT 'orden generada';
 ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS tracking_number TEXT;
 ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS shipping_cost DECIMAL(12,2) DEFAULT 0;
 
